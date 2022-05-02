@@ -97,14 +97,9 @@ https://ryu.readthedocs.io/en/latest/getting_started.html
 修改pcap對應的傳送間隔：PKT_FILE_MAP  
 修改其他設定如執行時間及頻寬相關參數  
   
-#### 執行mininet  
+#### 執行mininet自動執行ryu自動執行host  
 <code>
 sudo python3 mininet/custom/custom_example_nxtomini.py  
-</code>  
-
-#### 自動執行ryu  
-<code>
-ryu-manager ryu/ryu/app/simple_switch_13_nx.py  
 </code>  
   
 #### 等待
