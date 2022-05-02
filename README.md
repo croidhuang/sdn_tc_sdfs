@@ -112,5 +112,4 @@ ryu-manager ryu/ryu/app/simple_switch_13_nx.py
 用於紀錄throughput，依照設定的時間每個間隔儲存，檔案在home目錄   
 
 #### 執行完成  
-用於計算latency，最後輸出client和server的收發時間，檔案在pktgen/timestamp目錄  
 注意，時間過長可能會耗盡記憶體，需要修改儲存方式  
