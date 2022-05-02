@@ -72,7 +72,6 @@ http://mininet.org/download/
 <code>git clone https://github.com/mininet/mininet</code>  
 <code>sudo PYTHON=python3 mininet/util/install.sh -a</code>  
 
-
 #### 安裝python所需的模組 (與分類器相同) 
 <code>pip3 install sklearn joblib numpy pandas matplotlib seaborn pydotplus imblearn lightgbm pyarrow fastparquet</code>  
 
@@ -80,7 +79,12 @@ http://mininet.org/download/
 https://ryu.readthedocs.io/en/latest/getting_started.html  
 <code>git clone https://github.com/faucetsdn/ryu.git</code>  
 <code>sudo apt install python3-ryu</code>  
- 
+
+####下載這個github的檔案放到對應資料夾
+注意ryu/ryu/app/ryu_customapp/model中須放入model並修改ryu/ryu/app/simple_switch_13_nx.py中model的部份
+注意pktreplay/pcap須放入pcap並修改exp_config/exp_config.py中
+
+
 #### 設定重播pcap參數  
 開啟exp_config/exp_config.py  
 修改設定  
