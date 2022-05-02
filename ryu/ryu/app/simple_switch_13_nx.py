@@ -998,7 +998,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                             portno = stat.port_no
                             latency = self.latency[dpid][dstdpid]
                             bandwidth = self.edge_bandwidth[dpid][dstdpid]
-                            bandload = self.moniter_record["rx_curr"][dpid][dstdpid] + self.moniter_record["tx_curr"][dpid][dstdpid]                            
+                            bandload = self.moniter_record["rx_curr"][dpid][portno] + self.moniter_record["tx_curr"][dpid][portno]                            
                             bandfree = bandwidth - bandload
                         else:
                             portno = 4294967294
