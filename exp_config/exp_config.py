@@ -29,14 +29,14 @@ time
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
 SCHEDULER_TYPE = False  #False,"classright","random","MAX","min","algo",
-EXP_TYPE = "scheduling" #"scheduling","routing", "test"
+EXP_TYPE = "routing" #"scheduling","routing", "test"
 
 RANDOM_SEED_NUM = 3 #manual
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-04-17 15:40:00" #manual
+timestring = "2022-05-02 20:23:00" #manual
 timestamp = check_gogo_time(timestring)
-GOGO_TIME = 0 #timestamp
+GOGO_TIME = timestamp #timestamp
 
 #unit is second
 TOTAL_TIME = 4 * 60 #manual
