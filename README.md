@@ -81,10 +81,10 @@ https://ryu.readthedocs.io/en/latest/getting_started.html
 <code>sudo apt install python3-ryu</code>  
 
 #### 下載這個github的檔案放到對應資料夾
-注意ryu/ryu/app/ryu_customapp/models中須放入model
+注意ryu/ryu/app/ryu_customapp/models中須放入model  
 搜尋<code>.model'</code>並修改ryu/ryu/app/simple_switch_13_nx.py中model的部份  
   
-注意pktreplay/pcap須放入pcap
+注意pktreplay/pcap須放入pcap  
 搜尋<code>PKT_FILE_LIST</code>並修改exp_config/exp_config.py中pcap對應部份  
 
 #### 設定重播pcap參數  
