@@ -82,7 +82,7 @@ https://ryu.readthedocs.io/en/latest/getting_started.html
 
 #### 下載這個github的檔案放到對應資料夾
 注意ryu/ryu/app/ryu_customapp/model中須放入model並修改ryu/ryu/app/simple_switch_13_nx.py中model的部份  
-注意pktreplay/pcap須放入pcap並修改exp_config/exp_config.py中pcap  
+注意pktreplay/pcap須放入pcap並修改exp_config/exp_config.py中pcap
 
 #### 設定重播pcap參數  
 開啟exp_config/exp_config.py  
