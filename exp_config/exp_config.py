@@ -28,15 +28,15 @@ time
 """
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = False  #False,"classright","random","MAX","min","algo",
-EXP_TYPE = "routing" #"scheduling","routing", "test"
+SCHEDULER_TYPE = "MAX"  #False,"random","MAX","min","algo",
+EXP_TYPE = "scheduling" #"scheduling","routing", "test"
 
 RANDOM_SEED_NUM = 3 #manual
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-05-02 20:23:00" #manual
+timestring = "2022-05-22 18:04:00" #manual
 timestamp = check_gogo_time(timestring)
-GOGO_TIME = timestamp #timestamp
+GOGO_TIME = timestamp #0,timestamp
 
 #unit is second
 TOTAL_TIME = 4 * 60 #manual
@@ -57,7 +57,7 @@ FIRST_TIME_SLEEP = 10 #manual
 interval_lowlimit = float(1/1000) #manual s/packets
 interval_lowlimit_ctrl = False
 
-#opology
+#topology
 topo_SLICENDICT = {i:i for i in range(7)} #manual
 topo_GNode0_alignto_mininetSwitchNum = 1 #manual
 
@@ -176,6 +176,7 @@ orig_MEDIAN_ONE_PKT_SIZE = {
 
 
 
+
 """
 function
 """
@@ -187,10 +188,10 @@ def __INNTER_ARRIVAL_TIME(input_dict,SLICE_TRAFFIC_MAP):
     return INNTER_ARRIVAL_TIME
 
 def __ONE_PKT_SIZE(input_dict,SLICE_TRAFFIC_MAP):
-    EST_SLICE_ONE_PKT = {i: float(input_dict[SLICE_TRAFFIC_MAP[i]]) for i in input_dict}
+    ONE_PKT_SIZE = {i: int(input_dict[SLICE_TRAFFIC_MAP[i]]) for i in input_dict}
     if print_ctrl == True:
-        print(EST_SLICE_ONE_PKT) 
-    return EST_SLICE_ONE_PKT
+        print(ONE_PKT_SIZE) 
+    return ONE_PKT_SIZE
 
 def __interval_lowlimit(INNTER_ARRIVAL_TIME):
     x= [v for k, v in sorted(INNTER_ARRIVAL_TIME.items(), key = lambda item:item[1], reverse = False)]
@@ -219,14 +220,14 @@ def __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME,
         print(EST_SLICE_ONE_PKT)    
     return EST_SLICE_ONE_PKT
 
-def __EST_SLICE_BW (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
-    EST_SLICE_BW = {}
+
+def __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
+    EST_SLICE_AGING = {}
     for i in iter_slice_dict:
-        c = float(MONITOR_PERIOD / INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]])
-        EST_SLICE_BW[i] = int(user_threshold * ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * c)
+        EST_SLICE_AGING[i] = int(TOTAL_TIME)
     if print_ctrl == True:
-        print(EST_SLICE_BW)        
-    return EST_SLICE_BW
+        print(EST_SLICE_AGING)        
+    return EST_SLICE_AGING
 
 def __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME):
     NUM_PKT = {}
@@ -306,7 +307,7 @@ if EXP_TYPE == "test":
     cal bandwidth
     """
     
-    EST_SLICE_BW = __EST_SLICE_BW (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
@@ -315,10 +316,10 @@ if EXP_TYPE == "test":
 
     HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
     for i in topo_SLICENDICT.keys():
-        HISTORYTRAFFIC[i][(0,1)] = EST_SLICE_BW[i]
+        HISTORYTRAFFIC[i][(0,1)] = EST_SLICE_AGING[i]
 
     EDGE_BANDWIDTH_G = topo_G.copy()
-    EDGE_BANDWIDTH_G[0][1]['weight'] = EST_SLICE_BW[0]
+    EDGE_BANDWIDTH_G[0][1]['weight'] = EST_SLICE_AGING[0]
     EDGE_BANDWIDTH_G[1][0]['weight'] = EDGE_BANDWIDTH_G[0][1]['weight']
 
     if print_ctrl == True:
@@ -391,7 +392,7 @@ elif EXP_TYPE == "scheduling":
     cal bandwidth
     """
 
-    EST_SLICE_BW = __EST_SLICE_BW (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
@@ -400,14 +401,14 @@ elif EXP_TYPE == "scheduling":
 
     HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
     for i in topo_SLICENDICT.keys():
-        HISTORYTRAFFIC[i][(0,1)] = EST_SLICE_BW[i]
+        HISTORYTRAFFIC[i][(0,1)] = EST_SLICE_ONE_PKT[i]
 
     EDGE_BANDWIDTH_G = topo_G.copy()
     for k in topo_SLICENDICT:
         i=k+2
-        EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_BW[i-2]
+        EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[i-2]
         EDGE_BANDWIDTH_G[i][0]['weight'] = EDGE_BANDWIDTH_G[0][i]['weight']
-        EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_BW[i-2]
+        EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[i-2]
         EDGE_BANDWIDTH_G[i][1]['weight'] = EDGE_BANDWIDTH_G[1][i]['weight']
 
     if print_ctrl == True:
@@ -423,12 +424,17 @@ elif EXP_TYPE == "scheduling":
 #gen graph
 if EXP_TYPE == "routing":
 
-    topo_h = 5
-    topo_n = 5   
+    topo_h = 7
+    topo_n = 7   
     topo_G = nx.Graph()
     hostlist = [i for i in range(topo_h)]
     nodelist = [i for i in range(topo_n)]
-    edgelist = [(0,1),(0,2),(1,2),(1,3),(0,4),(2,4),(3,4),]
+    edgelist = []
+    for u in range(topo_n):
+        for v in range(topo_n):
+            if u<v:
+                edgelist.append((u,v))
+
     topo_G.add_nodes_from(nodelist)
     topo_G.add_edges_from(edgelist)
 
@@ -536,11 +542,7 @@ if EXP_TYPE == "routing":
         for v1,v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
 
-    slice_b={}
-    for i in iter_slice_dict:
-        slice_b[i] = sum_SLICE_HISTORYTRAFFIC[i]/num_SLICE_HISTORYTRAFFIC[i]    
-
-    EST_SLICE_BW = __EST_SLICE_BW (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, slice_b)
+    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     #mininet unit is MBytes 2^20~1000000, 1Byte = 8bit
