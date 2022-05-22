@@ -108,11 +108,11 @@ def _addPath(G, spath_G):
 def _unionEdge(v1, v2, topo_sliceG_i, loading_G, EDGE_BANDWIDTH_G, used_Edge_i, trafficE, allo_G):
     topo_sliceG_i.add_edge(v1, v2)
                             
-    loading_G[v1][v2]['weight'] = loading_G[v1][v2]['weight'] + trafficE
+    loading_G[v1][v2]['weight'] += trafficE
     loading_G[v2][v1]['weight'] = loading_G[v1][v2]['weight']
  
     used_Edge_i[v1][v2] += 1
-    used_Edge_i[v2][v1] += 1  
+    used_Edge_i[v2][v1] = used_Edge_i[v1][v2] 
 
     return topo_sliceG_i, loading_G, used_Edge_i, allo_G
 
@@ -204,7 +204,6 @@ def _sortSpath(T, spath_gen, impact_G):
 
 #algo start
 def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctrl, EXP_TYPE): 
-    SliceDraw_ctrl=0
     #initialze 
     allo_G = topo_G.copy()
 
@@ -237,7 +236,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
     #seed couuld be 2, 6, or more test to find
     topo_pos[0] = (1, 1)
 
-    if SliceDraw_ctrl:
+    if SliceDraw_ctrl == True:
         remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
         #draw G
         labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
@@ -257,7 +256,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
 
         #number +1 when call print png
         icount=0
-        if SliceDraw_ctrl:
+        if SliceDraw_ctrl == True:
             #draw G.V
             nx.draw_networkx(topo_sliceG[i], topo_pos)
             png_path= os.path.join("./exp_topopng/topo_sliceG["+str(i)+"]"+"_V.png")
@@ -301,14 +300,14 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             estcycle_G = _addPath(estcycle_G, spath_G)
             estB_G = v_G.copy()
             estB_G = _addPath(estB_G, spath_G)
-            if SliceDraw_ctrl:
+            if SliceDraw_ctrl == True:
                 estadd_G = v_G.copy()
                 estadd_G = _addPath(estadd_G, spath_G)                           
                 icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, trafficE, node_dist_to_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
 
             for v1,v2 in spath_G.edges():
                 topo_sliceG[i], loading_G, used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, used_Edge[i], trafficE, allo_G)
-            if SliceDraw_ctrl:                            
+            if SliceDraw_ctrl == True:                            
                 icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos, topo_sliceG[i], i, icount)            
 
         #spanning tree shortcut
@@ -336,7 +335,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                     if used_Edge[i][v1][v2] == 0:                        
                         estcycle_G = topo_sliceG[i].copy()                            
                         estcycle_G.add_edge(v1, v2)
-                        if SliceDraw_ctrl: 
+                        if SliceDraw_ctrl == True: 
                             estadd_G = v_G.copy()
                             estadd_G.add_edge(v1, v2)
                             icount=_draw_estcycle_G(topo_G, loading_G, EDGE_BANDWIDTH_G, trafficE, node_dist_to_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
@@ -344,7 +343,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                             topo_sliceG[i].add_edge(v1, v2)
                             used_Edge[i][v1][v2] += 1
                             used_Edge[i][v2][v1] += 1
-                            if SliceDraw_ctrl:
+                            if SliceDraw_ctrl == True:
                                 icount=_draw_subG(topo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos, topo_sliceG[i], i, icount)           
                     if _isConnected(topo_sliceG[i]) == True:
                         _isConnected_ctrl=1
@@ -352,7 +351,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                 if _isConnected_ctrl==1:
                     break
                     
-    if SliceDraw_ctrl:
+    if SliceDraw_ctrl == True:
         labels = nx.get_edge_attributes(EDGE_BANDWIDTH_G, 'weight')
         nx.draw_networkx_edges(allo_G, topo_pos)
         for i in range(7):
@@ -399,7 +398,7 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
     #seed couuld be 2, 6, or more test to find
     topo_pos[0] = (1, 1)
 
-    if SliceDraw_ctrl:
+    if SliceDraw_ctrl == True:
         remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
         #draw G
         labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
@@ -419,7 +418,7 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
 
         #number +1 when call print png
         icount=0
-        if SliceDraw_ctrl:
+        if SliceDraw_ctrl == True:
             #draw G.V
             nx.draw_networkx(topo_sliceG[i], topo_pos)
             png_path= os.path.join("./exp_topopng/topo_sliceG["+str(i)+"]"+"_V.png")
@@ -450,14 +449,14 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
             estcycle_G = _addPath(estcycle_G, spath_G)
             estB_G = v_G.copy()
             estB_G = _addPath(estB_G, spath_G)
-            if SliceDraw_ctrl:
+            if SliceDraw_ctrl == True:
                 estadd_G = v_G.copy()
                 estadd_G = _addPath(estadd_G, spath_G)                           
                 icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, trafficE, node_dist_to_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
 
             for v1,v2 in spath_G.edges():
                 topo_sliceG[i], loading_G, used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, used_Edge[i], trafficE, allo_G)
-            if SliceDraw_ctrl:                            
+            if SliceDraw_ctrl == True:                            
                 icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos, topo_sliceG[i], i, icount)            
 
         #spanning tree 
@@ -485,7 +484,7 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
                     if used_Edge[i][v1][v2] == 0:                        
                         estcycle_G = topo_sliceG[i].copy()                            
                         estcycle_G.add_edge(v1, v2)
-                        if SliceDraw_ctrl: 
+                        if SliceDraw_ctrl == True: 
                             estadd_G = v_G.copy()
                             estadd_G.add_edge(v1, v2)
                             icount=_draw_estcycle_G(topo_G, loading_G, EDGE_BANDWIDTH_G, trafficE, node_dist_to_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
@@ -493,7 +492,7 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
                             topo_sliceG[i].add_edge(v1, v2)
                             used_Edge[i][v1][v2] += 1
                             used_Edge[i][v2][v1] += 1
-                            if SliceDraw_ctrl:
+                            if SliceDraw_ctrl == True:
                                 icount=_draw_subG(topo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos, topo_sliceG[i], i, icount)           
                     if _isConnected(topo_sliceG[i]) == True:
                         _isConnected_ctrl=1
@@ -501,7 +500,7 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
                 if _isConnected_ctrl==1:
                     break
                     
-    if SliceDraw_ctrl:
+    if SliceDraw_ctrl == True:
         labels = nx.get_edge_attributes(EDGE_BANDWIDTH_G, 'weight')
         nx.draw_networkx_edges(allo_G, topo_pos)
         for i in range(7):

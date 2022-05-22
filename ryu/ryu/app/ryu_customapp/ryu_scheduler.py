@@ -3,7 +3,10 @@ from random import choice
 
 import sys
 sys.path.insert(1, './')
-from exp_config.exp_config import ONE_PKT_SIZE, INNTER_ARRIVAL_TIME, EST_SLICE_ONE_PKT
+from exp_config.exp_config import ONE_PKT_SIZE, INNTER_ARRIVAL_TIME, EST_SLICE_ONE_PKT, topo_SLICENDICT
+
+SliceDict = topo_SLICENDICT
+SliceNum = len(SliceDict)
 
 latency_statistic = INNTER_ARRIVAL_TIME
 bandpktsize_one_statistic = ONE_PKT_SIZE
@@ -94,7 +97,7 @@ def scheduler_hard_timeout(best, worst):
 def weighted_require(latency_s_normalize, bandpktsize_s_normalize, flow_s_normalize):
     r = {}
 
-    for i in range(7):
+    for i in range(SliceNum):
         try:
             r[i] = latency_s_normalize[i] + bandpktsize_s_normalize[i] + flow_s_normalize[i]
         except:
@@ -108,7 +111,7 @@ def weighted_require(latency_s_normalize, bandpktsize_s_normalize, flow_s_normal
 def weighted_quality(latency_s_normalize, bandpktsize_s_normalize, latency_d_normalize, bandfree_d_normalize):
     q = {}
 
-    for i in range(7):
+    for i in range(SliceNum):
         try:
             q[i] = (latency_s_normalize[i] * latency_d_normalize[i]) + (bandpktsize_s_normalize[i] * bandfree_d_normalize[i])
         except:
@@ -165,7 +168,7 @@ def scheduler_algo(class_result, latency, bandfree, flow):
 
 
 def random_algo(class_result, latency, bandfree, flow):
-    outputlist = [(i, bandfree[i]) for i in range(7)]
+    outputlist = [(i, bandfree[i]) for i in range(SliceNum)]
     avgroup = []
     
     for i, key in enumerate(outputlist):
@@ -176,7 +179,6 @@ def random_algo(class_result, latency, bandfree, flow):
 
     if avgroup:
         slice_num = choice(avgroup)
-        print(f'choice {slice_num}')
     else:
         slice_num = class_result
 
@@ -184,26 +186,25 @@ def random_algo(class_result, latency, bandfree, flow):
 
 
 def MAX_algo(class_result, latency, bandfree, flow):
-    outputdict = {i: bandfree[i] for i in range(7)}
+    outputdict = {i: bandfree[i] for i in range(SliceNum)}
     sortgroup = sorted(outputdict.items(),key=lambda item: item[1],reverse=True)
-
-    for i, key in enumerate(sortgroup):
+        
+    for i in range(len(sortgroup)):        
         av_slice_num = sortgroup[i][0]
         av = sortgroup[i][1]
-        if av > 0 and av >= EST_SLICE_ONE_PKT[class_result]:
+        if av > 0 and av - EST_SLICE_ONE_PKT[class_result] >= 0:
             max_value = sortgroup[i][1]
             break
 
     avgroup = []
-    for i, key in enumerate(sortgroup):
+    for i in range(len(sortgroup)):
         av_slice_num = sortgroup[i][0]
         av = sortgroup[i][1]
-        if av >= EST_SLICE_ONE_PKT[class_result] and av == max_value:
+        if av - EST_SLICE_ONE_PKT[class_result] >= 0 and av == max_value:
             avgroup.append(av_slice_num)
 
-    if avgroup:
+    if avgroup:        
         slice_num = choice(avgroup)
-        print(f'choice {slice_num}')
     else:
         slice_num = class_result
 
@@ -211,10 +212,10 @@ def MAX_algo(class_result, latency, bandfree, flow):
 
 
 def min_algo(class_result, latency, bandfree, flow):
-    outputdict = {i: bandfree[i] for i in range(7)}
+    outputdict = {i: bandfree[i] for i in range(SliceNum)}
     sortgroup = sorted(outputdict.items(), key=lambda item: item[1])
 
-    for i, key in enumerate(sortgroup):
+    for i in range(len(sortgroup)):
         av_slice_num = sortgroup[i][0]
         av = sortgroup[i][1]
         if av > 0 and av >= EST_SLICE_ONE_PKT[class_result]:
@@ -222,7 +223,7 @@ def min_algo(class_result, latency, bandfree, flow):
             break
 
     avgroup = []
-    for i, key in enumerate(sortgroup):
+    for i in range(len(sortgroup)):
         av_slice_num = sortgroup[i][0]
         av = sortgroup[i][1]
         if av >= EST_SLICE_ONE_PKT[class_result] and av == min_value:
@@ -230,7 +231,6 @@ def min_algo(class_result, latency, bandfree, flow):
 
     if avgroup:
         slice_num = choice(avgroup)
-        print(f'choice {slice_num}')
     else:
         slice_num = class_result
 
