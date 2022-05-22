@@ -1,4 +1,4 @@
-#sudo python3 mininet/custom/custom_example.py
+#sudo python3 mininet/custom/custom_example_nxtomini.py
 #http://mininet.org/api/annotated.html
 
 
@@ -173,6 +173,7 @@ def myNetwork():
 
     info("\n*** Start Ryu Controller\n")
     Popen(["xterm","-e", "ryu-manager ./ryu/ryu/app/simple_switch_13_nx.py"])
+    #wait Ryu start
     time.sleep(10)
 
     """
