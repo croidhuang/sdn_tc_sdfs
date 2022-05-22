@@ -66,10 +66,12 @@ sys.path.insert(1, "./")
 from exp_config.exp_config import \
 ROUTING_TYPE, SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
 GOGO_TIME, TOTAL_TIME, MONITOR_PERIOD,     \
-EST_SLICE_ONE_PKT, EST_SLICE_BW,     \
+EST_SLICE_ONE_PKT , EST_SLICE_AGING, \
 topo_G,     \
 topo_SLICENDICT, topo_GNode0_alignto_mininetSwitchNum,     \
 HISTORYTRAFFIC, EDGE_BANDWIDTH_G
+
+
 
 from exp_utils.exp_utils import \
 G_to_M, M_to_G, num_to_hostmac, hostmac_to_num, num_to_hostipv4, hostipv4_to_num, num_to_switchmac
@@ -101,28 +103,30 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.MonitorPrint_ctrl    = True
         self.LatencyPrint_ctrl    = False
 
+
         #function_ctrl
         #scheduler = config and monitor = True , other = False
         self.Classifier_ctrl   = False  # allright by ip = False, classification by model = True
         self.Routing_ctrl      = ROUTING_TYPE #bellman-ford, algo
-        self.Scheuduler_ctrl   = SCHEDULER_TYPE  # False, "classright", "random", "MAX", "min", "algo",
-        self.FlowMatch_ctrl    = False
+        self.Scheuduler_ctrl   = SCHEDULER_TYPE  # False, "random", "MAX", "min", "algo",
+        self.FlowMatch_ctrl    = True
         self.Monitor_ctrl      = True
         self.Latency_ctrl      = False
-        self.BWindow_ctrl      = True
+        self.BWaging_ctrl      = True
 
 
         #topology info from mininet
         self.SliceDict = topo_SLICENDICT
         self.SliceNum = len(self.SliceDict)
-        self.mininetSwitchPortDict = json.load(open("mininetSwitchPortDict.txt"))
-        self.mininetHostSwitchDict = json.load(open("mininetHostSwitchDict.txt"))
-        self.ryuSwitchPortDict={}
-        self.ryuHostSwitchDict={}
-
+        mininetSwitchPortDict = json.load(open("mininetSwitchPortDict.txt"))
+        mininetHostSwitchDict = json.load(open("mininetHostSwitchDict.txt"))
+        self.ryuSwitchPortDict = {}
+        self.ryuHostSwitchDict = {}
         
+        # switch to switch
+        # change value type to int if no char 'h'or's'
         self.mininetSwitchDict = {}
-        for k,d in self.mininetSwitchPortDict.items():
+        for k,d in mininetSwitchPortDict.items():
             try:
                 self.mininetSwitchDict[int(k)] = {}
             except:
@@ -132,12 +136,13 @@ class SimpleSwitch13(app_manager.RyuApp):
                 try:
                     self.mininetSwitchDict[int(k)][int(s)] = int(p)
                 except:
-                    self.mininetSwitchDict[int(k)][s] = int(p)
-        pprint.pprint(self.mininetSwitchDict)
-        
-        #reverse key,value search port of switch to know go to what switch   
+                    #port is link to host str('h(num)')
+                    self.mininetSwitchDict[int(k)][str(s)] = int(p)
+
+
+        # reverse key,value search port of switch to know go to what switch   
         self.mininetPortDict = {}
-        for k,d in self.mininetSwitchPortDict.items():
+        for k,d in mininetSwitchPortDict.items():
             try:
                 self.mininetPortDict[int(k)] = {}
             except:
@@ -149,8 +154,11 @@ class SimpleSwitch13(app_manager.RyuApp):
                 except:
                     if s in str(s):
                         self.mininetPortDict[int(k)][int(p)] = int(k)
+
+        # host to switch                        
+        #change value type to int if no char 'h'or's'                        
         self.mininetHostDict = {}
-        for h,p in self.mininetHostSwitchDict.items():
+        for h,p in mininetHostSwitchDict.items():
             try:
                 self.mininetHostDict[int(h)] = int(p)
             except:
@@ -174,7 +182,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
             writer = csv.writer(csv_file)
             writer.writerow(row)
-            row=[]
+            row = []
 
 
 
@@ -186,7 +194,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.slice_class_count = {i: 0 for i in self.SliceDict.keys()}
         #["unknown"] = unknown class
         self.slice_class_count["unknown"] = 0
-        self.pcapfile=tempfile.NamedTemporaryFile(delete=False)
+        self.pcapfile = tempfile.NamedTemporaryFile(delete = False)
         #self.pcap_writer = pcaplib.Writer(open("mypcap.pcap", "wb"), snaplen = 40)
         self.pcap_writer = pcaplib.Writer(open(self.pcapfile.name, "wb"), snaplen = 40)
 
@@ -258,11 +266,9 @@ class SimpleSwitch13(app_manager.RyuApp):
             "rx_curr": {s:{portno:0 for portno in toswitchdict.values()} for s,toswitchdict in self.mininetSwitchDict.items()},
         }
 
-        pprint.pprint(self.moniter_record["prev_tx_bytes"])
-
         for s in self.mininetSwitchDict.keys():
-            self.moniter_record["tx_curr"][s][4294967294]=0
-            self.moniter_record["rx_curr"][s][4294967294]=0
+            self.moniter_record["tx_curr"][s][4294967294] = 0
+            self.moniter_record["rx_curr"][s][4294967294] = 0
 
         ###WARING
         #latency
@@ -279,78 +285,81 @@ class SimpleSwitch13(app_manager.RyuApp):
         
         self.latency = {u:{v:0 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
         self.slice_latency = {i:0 for i in self.SliceDict.keys()}
-        self.slice_latency["unknown"]=0
+        self.slice_latency["unknown"] = 0
         self.flow_dynamic = {}
         
         #bandwidth
-        self.edge_bandwidth={u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
+        self.edge_bandwidth = {u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
         for s,dsts in EDGE_BANDWIDTH_G.edges():
-            self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]=EDGE_BANDWIDTH_G[s][dsts]['weight']
-            self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)]=self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]
+            self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] = EDGE_BANDWIDTH_G[s][dsts]['weight']
+            self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)] = self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]
         
-        self.edge_bandfree={u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
+        self.edge_bandfree = {u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
         for s,dsts in EDGE_BANDWIDTH_G.edges():
-            self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]=EDGE_BANDWIDTH_G[s][dsts]['weight']
-            self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)]=self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] 
+            self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] = EDGE_BANDWIDTH_G[s][dsts]['weight']
+            self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)] = self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] 
 
-        self.slice_bandwidth = EST_SLICE_BW.copy()
-        self.slice_bandwidth["unknown"] = 4294967294
-        self.slice_bandfree = EST_SLICE_BW.copy()
-        self.slice_bandfree["unknown"] = 4294967294
+        #slice (estimate)
+        self.slice_bandfree = {i:{u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()} for i in self.SliceDict.keys()}
+        for u in self.mininetSwitchDict.keys():
+            for v in self.mininetSwitchDict.keys():
+                self.slice_bandfree["unknown"]={u:{v:4294967294}}
         self.slice_bandpkt = EST_SLICE_ONE_PKT.copy()
         self.slice_bandpkt["unknown"] = 60
 
-        self.slice_BWindow_dict = {i:deque([0 for t in range(TOTAL_TIME)],maxlen=TOTAL_TIME) for i in self.SliceDict.keys()}
-        self.slice_BWindow_time = {i:[0 for t in range(TOTAL_TIME)] for i in self.SliceDict.keys()}
+        self.slice_BWaging_interval = EST_SLICE_AGING
+        self.slice_BWaging_dict = {i:{u:{v:deque([0 for t in range(self.slice_BWaging_interval[i])], maxlen = self.slice_BWaging_interval[i]) for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()} for i in self.SliceDict.keys()}
+        #self.slice_BWaging_timestamp = {i:0 for i in self.SliceDict.keys()}
 
-        self.slice_BWindow_period = 1
-        if self.BWindow_ctrl == True:
-            self.slice_BWindow_thread = hub.spawn(self._slice_BWindow )
+        self.slice_BWaging_period = 1
+        if self.BWaging_ctrl == True:
+            self.slice_BWaging_thread = hub.spawn(self._slice_BWaging )
 
         """
         topology slice
         """        
         #send to algo return subG
         if self.Routing_ctrl == "algo":
-            topo_sliceG = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
+            self.topo_slice_G = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
         elif self.Routing_ctrl == "bellman-ford": 
-            topo_sliceG = ryu_slicealgo.bellman_ford(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
+            self.topo_slice_G = ryu_slicealgo.bellman_ford(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
         else:
             print("gg:please check slice routing type")
 
         #sliceG trans to dict {switch:nextswitch}
         self.dst_switch_ish = {i:{ s:{} for s in self.mininetSwitchDict.keys() } for i in self.SliceDict.keys()}
-        for i,subG in enumerate(topo_sliceG):
+        for i,subG in enumerate(self.topo_slice_G):
             for s in self.mininetSwitchDict.keys():
                 #cal next switch in slice path
                 self.dst_switch_ish[i][s] = { h:s for h in self.mininetHostDict.keys() }
-                sdpath = {}
-                for h in self.mininetHostDict.keys():                    
-                    switch_link_host = int(self.mininetHostSwitchDict[str(h)]) 
-                    sdpath[h] = []    
-                    if s == switch_link_host:
-                        p_gen = [[M_to_G(s)]]
-                    else:
-                        try:                
-                            p_gen = nx.all_shortest_paths( subG, source = M_to_G(s) , target = M_to_G(switch_link_host))
-                            p_gen = list(p_gen)
-                        except:
-                            ###print("no simple path, may not connect")
-                            p_gen = [[M_to_G(s)]]
-                            continue
-                    sdpath[h] = p_gen[0]
+                sdpath = {dsts:[] for dsts in self.mininetSwitchDict.keys()} 
+                for h in self.mininetHostDict.keys():        
+                    dsts = int(self.mininetHostDict[h])                 
+                    p_gen = self._src_to_dst_path(subG = subG, s = s, dsts = dsts)
+                    sdpath[dsts] = p_gen             
 
                 #assign next switch
                 for h in self.mininetHostDict.keys():
-                    switch_link_host = int(self.mininetHostSwitchDict[str(h)])                         
-                    if s == switch_link_host:
+                    dsts = int(self.mininetHostDict[h])                         
+                    if s == dsts:
                         self.dst_switch_ish[i][s][h] = s
-                    elif sdpath[h] == []:
+                    elif sdpath[dsts] == []:
                         ###print("GG: not spanning tree")
                         self.dst_switch_ish[i][s][h] = s
                     else:
-                        self.dst_switch_ish[i][s][h] = G_to_M(sdpath[h][1])
+                        self.dst_switch_ish[i][s][h] = sdpath[dsts][1]
 
+                #slice bandwidth
+                for h in self.mininetHostDict.keys():
+                    dsts = int(self.mininetHostDict[h])                 
+                    if s == dsts:
+                        self.slice_bandfree[i][s][dsts] = 4294967294
+                    elif sdpath[dsts] == []:
+                        ###print("GG: not spanning tree")
+                        self.slice_bandfree[i][s][dsts] = 0
+                    else:
+                        minBW = self._find_minBW(BW = self.edge_bandwidth, p_gen = sdpath[dsts])
+                        self.slice_bandfree[i][s][dsts] = minBW 
         # edge_to_outport        
         self.outport_SrcsDsts = self.edge_to_outport()
 
@@ -360,8 +369,32 @@ class SimpleSwitch13(app_manager.RyuApp):
         layerid = "ipv4"
         self.outport_lish[layerid] = self.layer_to_outport(layerid = layerid)
 
-    #dpid mapping
+    def _find_minBW(self,BW, p_gen):
+        minBW = None
+        for s1,s2 in zip(p_gen[0::1], p_gen[1::1]):
+            if minBW == None:
+                minBW = int(BW[s1][s2])
+            if self.edge_bandwidth[s1][s2] < minBW:
+                minBW = int(BW[s1][s2])
+        return minBW
+            
+    def _src_to_dst_path(self, subG, s, dsts):
+        if s == dsts:
+            p_gen = [[M_to_G(s)]]
+        else:
+            try:                
+                p_gen = nx.all_shortest_paths( subG, source = M_to_G(s) , target = M_to_G(dsts))
+                p_gen = list(p_gen)
+            except:
+                ###print("no simple path, may not connect")
+                p_gen = []
+                return p_gen
+        for si,sitem in enumerate(p_gen[0]):
+            p_gen[0][si] = G_to_M(sitem)
 
+        return p_gen[0]
+
+    #dpid mapping
     def dpid_to_switchid(self, dpid):
         return dpid
 
@@ -369,7 +402,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         return sid    
 
     def edge_to_outport(self):
-
         outport_DirectedEdge = {}
         for s in self.mininetSwitchDict.keys():
             outport_DirectedEdge[s] = { w:{} for w in self.mininetSwitchDict.keys() }
@@ -378,7 +410,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     outport_DirectedEdge[s][dsts] = 0
                 else:
                     try:
-                        outport_DirectedEdge[s][dsts] = int(self.mininetSwitchPortDict[str(s)][str(dsts)])
+                        outport_DirectedEdge[s][dsts] = int(self.mininetSwitchDict[s][dsts])
                     except:
                         outport_DirectedEdge[s][dsts] = None
         return outport_DirectedEdge
@@ -409,16 +441,14 @@ class SimpleSwitch13(app_manager.RyuApp):
                  
                     if switch_num == dst_switch:
                         try:
-                            outport_ish[slice_num][switch_num][host_addr] = int(self.mininetSwitchPortDict[str(switch_num)][str("h"+str(host_num))])
+                            outport_ish[slice_num][switch_num][host_addr] = int(self.mininetSwitchDict[switch_num][str("h"+str(host_num))])
                         except:
                             outport_ish[slice_num][switch_num][host_addr] = None
                     else:
                         outport_ish[slice_num][switch_num][host_addr] = 0 
-                        outport_ish[slice_num][switch_num][host_addr] = int(self.mininetSwitchPortDict[str(switch_num)][str(dst_switch)])
+                        outport_ish[slice_num][switch_num][host_addr] = int(self.mininetSwitchDict[switch_num][dst_switch])
 
         return outport_ish
-
-
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
     def switch_features_handler(self, ev):
@@ -471,21 +501,37 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 
 
-    def _slice_BWindow(self):
+    def _slice_BWaging(self):
         while True:
-            for i in self.SliceDict.keys():
-                self.slice_bandfree[i] = self.slice_bandfree[i] + self.slice_BWindow_dict[i][0]
-                self.slice_BWindow_dict[i].popleft()
-                self.slice_BWindow_dict[i].append(0)
-                self.slice_BWindow_time[i]=time.time()+self.sleep_period                
+            for u in self.mininetSwitchDict.keys():
+                for v in self.mininetSwitchDict.keys():
+                    for i in self.SliceDict.keys():
+                        self.slice_bandfree[i][u][v] += self.slice_BWaging_dict[i][u][v][0]
+                        self.slice_bandfree[i][v][u] = self.slice_bandfree[i][u][v]
+                        self.slice_BWaging_dict[i][u][v].popleft()
+                        self.slice_BWaging_dict[i][v][u].popleft()
+                        self.slice_BWaging_dict[i][u][v].append(0)
+                        self.slice_BWaging_dict[i][v][u].append(0)
+            if self.ScheudulerPrint_ctrl == True:
+                for i in self.SliceDict.keys():
+                    for u in self.mininetSwitchDict.keys():
+                        for v in self.mininetSwitchDict.keys():
+                            if (u == 1 and v == 2) or (u == 2 and v == 1):
+                                print(f'{i} {u},{v}', end="")                            
+                                print('%16d' % (self.slice_bandfree[i][u][v]), end="")
+                                print("\n")
             hub.sleep(self.sleep_period)
 
     #different switch to lowload slice
     def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):
+        dsts = int(self.mininetHostDict[int(hostipv4_to_num(dst_host))])  
+
         slice_num = class_result
         if self.Scheuduler_ctrl == False:
             return out_port
         elif class_result == "unknown":
+            return out_port
+        elif switchid == dsts:
             return out_port
         
         if switchid in self.mininetSwitchDict.keys():
@@ -495,10 +541,13 @@ class SimpleSwitch13(app_manager.RyuApp):
             del flow["unknown"]
             latency = self.slice_latency.copy()
             del latency["unknown"]
-            bandfree = self.slice_bandfree.copy()
-            del bandfree["unknown"]
+            bandfree = {i:0 for i in range(self.SliceNum)}
+            for pi in self.SliceDict.keys():
+                p_gen = self._src_to_dst_path(subG = self.topo_slice_G[pi], s = switchid, dsts = dsts)
+                bandfree[pi] = self._find_minBW(BW = self.slice_bandfree[pi], p_gen = p_gen)
 
-            if self.Scheuduler_ctrl == "classright" or self.slice_bandfree[class_result] > self.slice_bandpkt[class_result]:
+
+            if bandfree[class_result] > self.slice_bandpkt[class_result]:
                 slice_num = class_result
             elif self.Scheuduler_ctrl == "random":
                 slice_num = ryu_scheduler.random_algo(class_result, latency, bandfree, flow)
@@ -513,16 +562,23 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
 
-        #concume avaliable slice
-        self.slice_bandfree[class_result] -= self.slice_bandpkt[class_result]
-        if time.time()<self.slice_BWindow_time[class_result]:
-            self.slice_BWindow_dict[class_result][-1] += self.slice_bandpkt[class_result]    
+        #consume avaliable slice
+        subG = self.topo_slice_G[slice_num]
+        p_gen = self._src_to_dst_path(subG = subG, s = switchid, dsts = dsts)
+               
+        if switchid == dsts:
+            pass
+        elif p_gen == []:
+            pass
+        else:
+            for s1,s2 in zip(p_gen[0::1], p_gen[1::1]):                            
+                # consume each switch slice
+                self.slice_bandfree[slice_num][s1][s2] -= self.slice_bandpkt[slice_num]
+                self.slice_bandfree[slice_num][s2][s1] = self.slice_bandfree[slice_num][s1][s2]        
+                # aging flow in slice
+                self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[slice_num]    
+                self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
         
-        if self.ScheudulerPrint_ctrl == True:
-            print(f"concume {self.slice_bandpkt[class_result]}")
-            print(f"bandfree slice{class_result}:{self.slice_bandfree[class_result]}")
-            print(f"controller s{switchid} outport = {out_port}")
-
         return out_port
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
@@ -541,7 +597,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         switchid = self.dpid_to_switchid(dpid)
         pkt = packet.Packet(msg.data)
 
-        #need L3 L4 to classifier if not will valueerror
+        #need L3 L4 to classifier, if not, will valueerror
         L3_ctrl = False
         L4_ctrl = False
         ICMP_ctrl = True
@@ -687,7 +743,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                             loadbar = loadbar + "■"
                         self.logger.info("---------------------------------------------------------------------------------------")
                         self.logger.info(f"{dpid:<2}-{reply_id:<2} avg latency   request    reply     ")
-                        fstringpad=""
+                        fstringpad = ""
                         self.logger.info(f"{fstringpad:5} {avg:<4.3f} {loadbar:<12} {self.latency[reply_id][dpid]:<10.3f} {self.latency[dpid][reply_id]:<10.3f}")
                     #clean for next time use
                     self.ping_req_timestamp[dpid][reply_id] = 0
@@ -710,11 +766,14 @@ class SimpleSwitch13(app_manager.RyuApp):
         if L3_ctrl == True and L4_ctrl == True and ICMP_ctrl == True:
             try:
                 #for classifier
-                if self.Classifier_ctrl == True:
+                if self.Classifier_ctrl == False:
+                    class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+                else:
                     app_result = self.loaded_model.predict(X_test)
                     #return result is list
                     app_result = int(app_result[0])
                     class_result = self.app_to_service[app_result]
+                    
                 #for scheduler
                 self.slice_class_count[class_result] += 1
                 if self.ClassPrint_ctrl == True:
@@ -740,7 +799,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             if switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:                
                 #out_port
                 out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
-                out_port = self._out_port_group(out_port, class_result="unknown", switchid=switchid, dst_host=ipv4_dst, layerid="ipv4")
+                out_port = self._out_port_group(out_port, class_result = "unknown", switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
                 if self.ActionPrint_ctrl == True:
                     self.logger.info(f"ping dst ip    s{switchid:<2}(out = {out_port:>2})")
                 #match
@@ -772,7 +831,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
             #out_port
             out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
-            out_port = self._out_port_group(out_port, class_result, switchid, dst_host=ipv4_dst, layerid="ipv4")
+            out_port = self._out_port_group(out_port, class_result, switchid, dst_host = ipv4_dst, layerid = "ipv4")
             if self.ActionPrint_ctrl == True:
                 self.logger.info(f"dst ip    s{switchid:<2}(out = {out_port:>2})")
             #match
@@ -803,7 +862,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["mac"][class_result] and eth_dst in self.outport_lish["mac"][class_result][switchid]:
             out_port = self.outport_lish["mac"][class_result][switchid][eth_dst]
-            out_port = self._out_port_group(out_port, class_result, switchid, dst_host=eth_dst, layerid="mac")
+            out_port = self._out_port_group(out_port, class_result, switchid, dst_host = eth_dst, layerid = "mac")
             if self.ActionPrint_ctrl == True:
                 self.logger.info(f"dst mac    s{switchid:<2}(out = {out_port:>2})")
             match = datapath.ofproto_parser.OFPMatch(eth_dst = eth_dst)
@@ -924,6 +983,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
     #monitor
     def _request_stats(self, datapath):
+        print('monitor')
         self.logger.debug("send stats request: %016x", datapath.id)
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -937,6 +997,7 @@ class SimpleSwitch13(app_manager.RyuApp):
     def _monitor(self):
         while True:
             for dpid, datapath in self.datapaths.items():
+                print('monitor')
                 self._request_stats(datapath)
             hub.sleep(self.sleep_period)
 
@@ -954,6 +1015,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
+        print('monitor')
         body = ev.msg.body
         dpid = ev.msg.datapath.id
 
@@ -984,7 +1046,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 self.logger.info("datapath         port     "
                                 "rx-pkts  rx-bytes rx-curr  "
                                 "tx-pkts  tx-bytes tx-curr  "
-                                "latency  est.free est.load")
+                                "latency  rt.free  rt.load")
                 self.logger.info("---------------- -------- "
                                 "-------- -------- -------- "
                                 "-------- -------- -------- "
@@ -1029,12 +1091,12 @@ class SimpleSwitch13(app_manager.RyuApp):
                     for csvportno in toswitchdict.values():
                         if self.moniter_record["rx_curr"][csvsrcid][csvportno] > 0:
                             row.append(self.moniter_record["rx_curr"][csvsrcid][csvportno])    
-                            self.moniter_record["rx_curr"][csvsrcid][csvportno]=0
+                            self.moniter_record["rx_curr"][csvsrcid][csvportno] = 0
                         else:
                             row.append(0)
                         if self.moniter_record["tx_curr"][csvsrcid][csvportno] > 0:
                             row.append(self.moniter_record["tx_curr"][csvsrcid][csvportno])
-                            self.moniter_record["tx_curr"][csvsrcid][csvportno]=0               
+                            self.moniter_record["tx_curr"][csvsrcid][csvportno] = 0               
                         else:
                             row.append(0)
 
