@@ -296,10 +296,6 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             #add path           
             spath_G = sorted_spath_G_list[0]
     
-            estcycle_G = topo_sliceG[i].copy()
-            estcycle_G = _addPath(estcycle_G, spath_G)
-            estB_G = v_G.copy()
-            estB_G = _addPath(estB_G, spath_G)
             if SliceDraw_ctrl == True:
                 estadd_G = v_G.copy()
                 estadd_G = _addPath(estadd_G, spath_G)                           
@@ -445,10 +441,6 @@ def bellman_ford(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_c
             #add path           
             spath_G = _removeCycle(topo_sliceG[i], spath_gen[0])
     
-            estcycle_G = topo_sliceG[i].copy()
-            estcycle_G = _addPath(estcycle_G, spath_G)
-            estB_G = v_G.copy()
-            estB_G = _addPath(estB_G, spath_G)
             if SliceDraw_ctrl == True:
                 estadd_G = v_G.copy()
                 estadd_G = _addPath(estadd_G, spath_G)                           
