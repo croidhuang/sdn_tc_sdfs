@@ -28,41 +28,49 @@ time
 """
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = "MAX"  #False,"random","MAX","min","algo",
-EXP_TYPE = "scheduling" #"scheduling","routing", "test"
+SCHEDULER_TYPE = False  #False,"random","MAX","min","algo",
+EXP_TYPE = "routing" #"scheduling","routing", "test"
 
-RANDOM_SEED_NUM = 3 #manual
+#seed
+RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-05-22 18:04:00" #manual
+timestring = "2022-05-30 19:02:00" #custom
 timestamp = check_gogo_time(timestring)
-GOGO_TIME = timestamp #0,timestamp
+GOGO_TIME = 0 #0,timestamp
 
 #unit is second
-TOTAL_TIME = 4 * 60 #manual
+TOTAL_TIME = 4 * 60 #custom
 
 #unit is second, monitor period, controller get budget and scheduler distribute
-MONITOR_PERIOD = 1 #manual
+MONITOR_PERIOD = 1 #custom
 
 # custom by your experimnet
 # if user > user_threshold will congestion
-user_threshold = 1 #manual
+user_threshold = 1 #custom
 
 # depand on your computer
 # if send interval < interval_lowlimit will lag
 # ref orig time smallest value would be interval_lowlimit
-FIRST_TIME_SLEEP = 10 #manual
+FIRST_TIME_SLEEP = 10 #custom
 
 #if lower than lowlimit will be lowlimit
-interval_lowlimit = float(1/1000) #manual s/packets
+interval_lowlimit = float(1/1000) #custom s/packets
 interval_lowlimit_ctrl = False
 
+#exp var ratio
+historytraffic_send_ratio = 0.8 #custom
+historytraffic_scale= 0.8 #custom 
+edge_bandwidth_scale= 0.8 #custom
+
 #topology
-topo_SLICENDICT = {i:i for i in range(7)} #manual
-topo_GNode0_alignto_mininetSwitchNum = 1 #manual
+topo_SLICENDICT = {i:i for i in range(7)} #custom
+topo_GNode0_alignto_mininetSwitchNum = 1 #custom
 
 #print all list
 print_ctrl = 0
+
+
 
 
 
@@ -221,7 +229,7 @@ def __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME,
     return EST_SLICE_ONE_PKT
 
 
-def __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
+def __EST_SLICE_AGING (TOTAL_TIME):
     EST_SLICE_AGING = {}
     for i in iter_slice_dict:
         EST_SLICE_AGING[i] = int(TOTAL_TIME)
@@ -247,12 +255,27 @@ def __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME):
     return MININET_BW
 
 
+def gen_scaledict(pair_list,traffic_cnt,lowestscale):
+
+    traffic_len = len(traffic_cnt)
+    if traffic_len == 0:
+        traffic_len = 1             
+    traffic_ladder = (1-lowestscale)/ traffic_len
+
+    for ti in range(len(traffic_cnt)):
+        traffic_cnt[ti]=1-(traffic_ladder*ti)
+
+    random.shuffle(traffic_cnt)
+
+    scaledict={}
+    for ri,r in enumerate(pair_list):
+        scaledict[r] = traffic_cnt[ri]  
+
+    return scaledict
 
 
 
-
-
-#manual
+#custom
 #gen graph
 if EXP_TYPE == "test":
     topo_SLICENDICT = {}
@@ -307,7 +330,7 @@ if EXP_TYPE == "test":
     cal bandwidth
     """
     
-    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
@@ -392,7 +415,7 @@ elif EXP_TYPE == "scheduling":
     cal bandwidth
     """
 
-    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
@@ -420,12 +443,12 @@ elif EXP_TYPE == "scheduling":
 
 
 
-#manual
+#custom
 #gen graph
 if EXP_TYPE == "routing":
 
-    topo_h = 7
-    topo_n = 7   
+    topo_h = 5
+    topo_n = 5   
     topo_G = nx.Graph()
     hostlist = [i for i in range(topo_h)]
     nodelist = [i for i in range(topo_n)]
@@ -498,21 +521,31 @@ if EXP_TYPE == "routing":
     sum_HISTORYTRAFFIC = 0
     sum_SLICE_HISTORYTRAFFIC = {i:0 for i in topo_SLICENDICT.keys()}
     num_SLICE_HISTORYTRAFFIC = {i:0 for i in topo_SLICENDICT.keys()}
+
+    
     for i,i_dict in HISTORYTRAFFIC.items():
-        for e,v in i_dict.items():
-            if random.random() > 0.8:
+        pair_list=[]
+        traffic_cnt=[]        
+        for e,v in i_dict.items():         
+            if random.random() > historytraffic_send_ratio:
                 continue
-            else:
+            else:                
+                pair_list.append(e)
+                traffic_cnt.append(0)
+
+            scaledict = gen_scaledict(pair_list,traffic_cnt,historytraffic_scale)            
+
+            for pi,e in enumerate(pair_list):
                 v1=e[0]
                 v2=e[1]
                 HISTORYTRAFFIC[i][(v1,v2)] = int(\
                     ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * \
                     float(1/INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]]) * \
-                    TOTAL_TIME)
+                    TOTAL_TIME* \
+                    scaledict[e])
                 sum_HISTORYTRAFFIC = sum_HISTORYTRAFFIC + HISTORYTRAFFIC[i][(v1,v2)]
                 sum_SLICE_HISTORYTRAFFIC[i] = sum_SLICE_HISTORYTRAFFIC[i] + HISTORYTRAFFIC[i][(v1,v2)]
                 num_SLICE_HISTORYTRAFFIC[i] = num_SLICE_HISTORYTRAFFIC[i] + 1
-
     if print_ctrl == True:
         pprint.pprint(HISTORYTRAFFIC)
 
@@ -532,17 +565,26 @@ if EXP_TYPE == "routing":
         print(f"{pers_b/(2**20)}<2700")
     edge_num = len(EDGE_BANDWIDTH_G.edges())
     avg_b = pers_b / edge_num 
-    edge_b = avg_b  * 0.8
+
+    pair_list=[]
+    traffic_cnt=[]        
+    for v1,v2 in EDGE_BANDWIDTH_G.edges():
+        e=(v1,v2)
+        pair_list.append(e)
+        traffic_cnt.append(0)
+
+    scaledict = gen_scaledict(pair_list,traffic_cnt,historytraffic_scale)     
 
     for v1,v2 in EDGE_BANDWIDTH_G.edges():
-        EDGE_BANDWIDTH_G[v1][v2]['weight'] = edge_b
+        e=(v1,v2)
+        EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaledict[e])
         EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']      
 
     if print_ctrl == True:
         for v1,v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
 
-    EST_SLICE_AGING = __EST_SLICE_AGING (SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     #mininet unit is MBytes 2^20~1000000, 1Byte = 8bit
