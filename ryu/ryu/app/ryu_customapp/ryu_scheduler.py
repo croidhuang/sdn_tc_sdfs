@@ -171,7 +171,7 @@ def random_algo(class_result, latency, bandfree, flow):
     outputlist = [(i, bandfree[i]) for i in range(SliceNum)]
     avgroup = []
     
-    for i, key in enumerate(outputlist):
+    for i in range(len(outputlist)):
         av_slice_num = outputlist[i][0]
         av = outputlist[i][1]
         if av >= EST_SLICE_ONE_PKT[class_result]:
