@@ -175,6 +175,7 @@ def myNetwork():
     Popen(["xterm","-e", "ryu-manager ./ryu/ryu/app/simple_switch_13_nx.py"])
     #wait Ryu start
     time.sleep(10)
+    
 
     """
     ###WARNING  must start controller
