@@ -86,7 +86,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.datapaths = {}
 
         """
-        manual
+        custom
         """
         #flow table entry timeout
         self.hard_timeout = ryu_scheduler.scheduler_hard_timeout(0,0)
@@ -94,7 +94,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.hard_timeout["unknown"] = 0
         self.duration_sec = 0
 
-        #print_ctrl, if 1 then print info
+        #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
         self.SliceDraw_ctrl       = False
         self.ClassPrint_ctrl      = False
@@ -319,11 +319,9 @@ class SimpleSwitch13(app_manager.RyuApp):
         topology slice
         """        
         #send to algo return subG
-        if self.Routing_ctrl == "algo":
-            self.topo_slice_G = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
-        elif self.Routing_ctrl == "bellman-ford": 
-            self.topo_slice_G = ryu_slicealgo.bellman_ford(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, EXP_TYPE)
-        else:
+        try:
+            self.topo_slice_G = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl,ROUTING_TYPE, EXP_TYPE)
+        except:
             print("gg:please check slice routing type")
 
         #sliceG trans to dict {switch:nextswitch}
@@ -983,7 +981,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 
     #monitor
     def _request_stats(self, datapath):
-        print('monitor')
         self.logger.debug("send stats request: %016x", datapath.id)
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
