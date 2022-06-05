@@ -121,6 +121,8 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos
     remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
     if i == 0 and icount == 0:
         labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
+        for v1, v2 in remain_bandwidth_G.edges():
+            labels[(v1, v2)]=str(int(labels[(v1, v2)]/1000000))+"G"
         nx.draw_networkx_edges(allo_G, topo_pos)
         nx.draw_networkx(allo_G, topo_pos, nodelist = showG.nodes(), edgelist = showG.edges(),node_color="tab:green" , edge_color = node_dist_to_color[i+1], font_color="whitesmoke", width = 4)
         nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = labels)
@@ -128,6 +130,8 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos
         #plt.show()
         plt.clf()
     labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
+    for v1, v2 in remain_bandwidth_G.edges():
+        labels[(v1, v2)]=str(int(labels[(v1, v2)]/1000000))+"G"
     nx.draw_networkx_edges(allo_G, topo_pos)
     nx.draw_networkx(allo_G, topo_pos, nodelist = showG.nodes(), edgelist = showG.edges(),node_color="tab:green" , edge_color = node_dist_to_color[i+1], font_color="whitesmoke", width = 4)
     nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = labels)
@@ -140,8 +144,13 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, node_dist_to_color, topo_pos
 def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, trafficE, node_dist_to_color, topo_pos, showG, estG, i, icount):
     remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
     labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
+    for v1, v2 in remain_bandwidth_G.edges():
+        labels[(v1, v2)]=str(int(labels[(v1, v2)]/1000000))+"G"
+       
     for v1, v2 in estG.edges():
-        labels[(v1, v2)]=str(labels[(v1, v2)])+"-"+str(trafficE)
+        labels[(v1, v2)]=remain_bandwidth_G[v1][v2]['weight']
+        labels[(v1, v2)]=str(int(labels[(v1, v2)]/1000000))+"G"+"-"+str(int(trafficE/1000000))+"G"
+
     nx.draw_networkx_edges(allo_G, topo_pos)
     nx.draw_networkx(allo_G, topo_pos, nodelist = showG.nodes(), edgelist = showG.edges(),node_color="tab:green" , edge_color = node_dist_to_color[i+1], font_color="whitesmoke", width = 4, style="solid")
     nx.draw_networkx(allo_G, topo_pos, nodelist = estG.nodes(), edgelist = estG.edges(),node_color="tab:green" , edge_color = node_dist_to_color[i+1], font_color="whitesmoke", width = 4, style="dashed")
@@ -233,7 +242,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         7: "tab:pink"
     }
 
-    topo_pos = nx.spring_layout(topo_G, seed=2)
+    topo_pos = nx.shell_layout(topo_G)
     #seed couuld be 2, 6, or more test to find
     topo_pos[0] = (1, 1)
 
@@ -241,7 +250,9 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
         #draw G
         labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
-        nx.draw_networkx(topo_G, topo_pos)
+        for v1, v2 in remain_bandwidth_G.edges():
+            labels[(v1, v2)]=str(int(labels[(v1, v2)]/1000000))+"G"
+        nx.draw_networkx(allo_G, topo_pos,node_color="tab:green" , font_color="whitesmoke", width = 4)
         nx.draw_networkx_edge_labels(topo_G, topo_pos, edge_labels = labels)
         png_path= os.path.join("./exp_topopng/topo_sliceG[7]"+"_G.png")
         plt.savefig(png_path, dpi=300)
@@ -259,7 +270,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         icount=0
         if SliceDraw_ctrl == True:
             #draw G.V
-            nx.draw_networkx(topo_sliceG[i], topo_pos)
+            nx.draw_networkx(topo_sliceG[i], topo_pos,node_color="tab:green", font_color="whitesmoke", width = 4)
             png_path= os.path.join("./exp_topopng/topo_sliceG["+str(i)+"]"+"_V.png")
             plt.savefig(png_path, dpi=300)
             plt.clf()
