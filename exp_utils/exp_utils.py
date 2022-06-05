@@ -65,6 +65,7 @@ def num_to_hostipv4(host_num):
     return host_ipv4_addr
 
 def hostipv4_to_num(host_ipv4_addr):
+    #10.0.0.1 => 1
     ipv4form = [10,0,0,0]
     host_ipv4_addr = host_ipv4_addr.split(".")
     host_ipv4_addr = [int(host_ipv4_addr[i]) - int(ipv4form[i]) for i in range(len(ipv4form))]
@@ -104,3 +105,12 @@ def num_to_switchmac(switch_num):
         else:
             switch_mac_addr = switch_mac_addr+macform[i]+":"
     return switch_mac_addr    
+
+def clienttraffictype_to_L4port(traffictype,client):
+    L4port=traffictype*10000+client*1000
+    return L4port 
+
+def L4port_to_clienttraffictype(L4port):
+    L4port=str(L4port).zfill(5)
+    traffictype=L4port[0]
+    return traffictype
