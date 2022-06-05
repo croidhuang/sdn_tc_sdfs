@@ -27,17 +27,17 @@ def check_gogo_time(timestring):
 time
 """
 
-ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = False  #False,"random","MAX","min","algo",
+ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
+SCHEDULER_TYPE = False  #False,"random","MAX","min","algo"
 EXP_TYPE = "routing" #"scheduling","routing", "test"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-05-30 19:02:00" #custom
+timestring = "2022-06-05 19:39:00" #custom
 timestamp = check_gogo_time(timestring)
-GOGO_TIME = 0 #0,timestamp
+GOGO_TIME = timestamp #0,timestamp
 
 #unit is second
 TOTAL_TIME = 4 * 60 #custom
@@ -57,11 +57,6 @@ FIRST_TIME_SLEEP = 10 #custom
 #if lower than lowlimit will be lowlimit
 interval_lowlimit = float(1/1000) #custom s/packets
 interval_lowlimit_ctrl = False
-
-#exp var ratio
-historytraffic_send_ratio = 0.8 #custom
-historytraffic_scale= 0.8 #custom 
-edge_bandwidth_scale= 0.8 #custom
 
 #topology
 topo_SLICENDICT = {i:i for i in range(7)} #custom
@@ -447,8 +442,14 @@ elif EXP_TYPE == "scheduling":
 #gen graph
 if EXP_TYPE == "routing":
 
-    topo_h = 5
-    topo_n = 5   
+    topo_h = 7
+    topo_n = 7   
+
+    #exp var ratio
+    historytraffic_send_ratio = 0.8 #custom
+    historytraffic_scale = 0.8 #custom 
+    edge_bandwidth_scale = 0.8 #custom
+
     topo_G = nx.Graph()
     hostlist = [i for i in range(topo_h)]
     nodelist = [i for i in range(topo_n)]
@@ -513,6 +514,7 @@ if EXP_TYPE == "routing":
         for v1 in topo_G.nodes():
             for v2 in topo_G.nodes():
                 if v1 != v2:
+                    #0.5 is only one direction
                     if random.random() > 0.5:
                         HISTORYTRAFFIC[i][(v1,v2)] = 0
                     else:
@@ -521,7 +523,6 @@ if EXP_TYPE == "routing":
     sum_HISTORYTRAFFIC = 0
     sum_SLICE_HISTORYTRAFFIC = {i:0 for i in topo_SLICENDICT.keys()}
     num_SLICE_HISTORYTRAFFIC = {i:0 for i in topo_SLICENDICT.keys()}
-
     
     for i,i_dict in HISTORYTRAFFIC.items():
         pair_list=[]
@@ -563,8 +564,9 @@ if EXP_TYPE == "routing":
         print(f"{pers_b/(2**20)}>2700")
     else:
         print(f"{pers_b/(2**20)}<2700")
+
     edge_num = len(EDGE_BANDWIDTH_G.edges())
-    avg_b = pers_b / edge_num 
+    avg_b = sum_HISTORYTRAFFIC / edge_num 
 
     pair_list=[]
     traffic_cnt=[]        
@@ -573,7 +575,7 @@ if EXP_TYPE == "routing":
         pair_list.append(e)
         traffic_cnt.append(0)
 
-    scaledict = gen_scaledict(pair_list,traffic_cnt,historytraffic_scale)     
+    scaledict = gen_scaledict(pair_list,traffic_cnt,edge_bandwidth_scale)     
 
     for v1,v2 in EDGE_BANDWIDTH_G.edges():
         e=(v1,v2)
