@@ -74,7 +74,7 @@ HISTORYTRAFFIC, EDGE_BANDWIDTH_G
 
 
 from exp_utils.exp_utils import \
-G_to_M, M_to_G, num_to_hostmac, hostmac_to_num, num_to_hostipv4, hostipv4_to_num, num_to_switchmac
+G_to_M, M_to_G, num_to_hostmac, hostmac_to_num, num_to_hostipv4, hostipv4_to_num, num_to_switchmac, L4port_to_clienttraffictype
 
 class SimpleSwitch13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
@@ -91,16 +91,15 @@ class SimpleSwitch13(app_manager.RyuApp):
         #flow table entry timeout
         self.hard_timeout = ryu_scheduler.scheduler_hard_timeout(0,0)
         #["unknown"] = unknown class
-        self.hard_timeout["unknown"] = 0
-        self.duration_sec = 0
+        self.hard_timeout["unknown"] = 1
 
         #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
-        self.SliceDraw_ctrl       = False
-        self.ClassPrint_ctrl      = False
+        self.SliceDraw_ctrl       = True
+        self.ClassifierPrint_ctrl = False
         self.ScheudulerPrint_ctrl = False
         self.ActionPrint_ctrl     = False
-        self.MonitorPrint_ctrl    = True
+        self.MonitorPrint_ctrl    = False
         self.LatencyPrint_ctrl    = False
 
 
@@ -191,9 +190,9 @@ class SimpleSwitch13(app_manager.RyuApp):
             "./ryu/ryu/app/ryu_customapp/models/b255v6 RandomForest choice_random=0.004 train_size=0.8 test_size=0.2 choice_split=3 choice_train=2 1630563027.216647.pkl"
         )
         self.packet_count = 0
-        self.slice_class_count = {i: 0 for i in self.SliceDict.keys()}
+        self.slice_class_count = {i:{u:{v:0 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()} for i in self.SliceDict.keys()}
         #["unknown"] = unknown class
-        self.slice_class_count["unknown"] = 0
+        self.slice_class_count["unknown"] = {u:{v:0 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()}
         self.pcapfile = tempfile.NamedTemporaryFile(delete = False)
         #self.pcap_writer = pcaplib.Writer(open("mypcap.pcap", "wb"), snaplen = 40)
         self.pcap_writer = pcaplib.Writer(open(self.pcapfile.name, "wb"), snaplen = 40)
@@ -284,8 +283,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.ping_rlyin_timestamp = {u:{v:0 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
         
         self.latency = {u:{v:0 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
-        self.slice_latency = {i:0 for i in self.SliceDict.keys()}
-        self.slice_latency["unknown"] = 0
         self.flow_dynamic = {}
         
         #bandwidth
@@ -320,7 +317,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         """        
         #send to algo return subG
         try:
-            self.topo_slice_G = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl,ROUTING_TYPE, EXP_TYPE)
+            self.topo_slice_G = ryu_slicealgo.slice_algo(topo_G, self.SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, self.SliceDraw_ctrl, ROUTING_TYPE, EXP_TYPE)
         except:
             print("gg:please check slice routing type")
 
@@ -392,6 +389,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         return p_gen[0]
 
+
+
     #dpid mapping
     def dpid_to_switchid(self, dpid):
         return dpid
@@ -456,14 +455,12 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-        hard_timeout = 0
         self.add_flow(datapath = datapath,
                       priority = 0,
                       match = match,
-                      actions = actions,
-                      hard_timeout = hard_timeout)
+                      actions = actions)
 
-    def add_flow(self, datapath, priority, match, actions, hard_timeout, *buffer_id):
+    def add_flow(self, datapath, priority, match, actions, *buffer_id):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
@@ -471,14 +468,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         if buffer_id:
             mod = parser.OFPFlowMod(datapath = datapath,
                                     command = datapath.ofproto.OFPFC_ADD,
-                                    hard_timeout = hard_timeout,
                                     priority = priority,
                                     buffer_id = buffer_id,
                                     match = match,
                                     instructions = inst)
         else:
             mod = parser.OFPFlowMod(datapath = datapath,
-                                    hard_timeout = hard_timeout,
                                     priority = priority,
                                     match = match,
                                     instructions = inst)
@@ -535,10 +530,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         if switchid in self.mininetSwitchDict.keys():
             ###WARING
             #get value
-            flow = self.slice_class_count.copy()
-            del flow["unknown"]
-            latency = self.slice_latency.copy()
-            del latency["unknown"]
+            flow = self.slice_class_count[class_result][switchid][dst_host].copy()            
+            latency = self.latency[switchid][dst_host].copy()
             bandfree = {i:0 for i in range(self.SliceNum)}
             for pi in self.SliceDict.keys():
                 p_gen = self._src_to_dst_path(subG = self.topo_slice_G[pi], s = switchid, dsts = dsts)
@@ -765,7 +758,18 @@ class SimpleSwitch13(app_manager.RyuApp):
             try:
                 #for classifier
                 if self.Classifier_ctrl == False:
-                    class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+                    if EXP_TYPE == "scheduling":
+                        class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+                    elif EXP_TYPE == "routing":
+                        if udp_src:                            
+                            class_result = int(L4port_to_clienttraffictype(udp_src))                            
+                        elif tcp_src:
+                            class_result = int(L4port_to_clienttraffictype(tcp_src))
+                        else:
+                            #print("no L4 port")                            
+                            class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum                            
+                    else:                            
+                        class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
                 else:
                     app_result = self.loaded_model.predict(X_test)
                     #return result is list
@@ -773,15 +777,19 @@ class SimpleSwitch13(app_manager.RyuApp):
                     class_result = self.app_to_service[app_result]
                     
                 #for scheduler
-                self.slice_class_count[class_result] += 1
-                if self.ClassPrint_ctrl == True:
-                    print(f"class = {self.service_to_string[class_result]} count = {self.slice_class_count[class_result]}")
+                self.slice_class_count[class_result][int(hostipv4_to_num(ipv4_src))][int(hostipv4_to_num(ipv4_dst))] += 1
+                if self.ClassifierPrint_ctrl == True:                    
+                    print(f"class = {self.service_to_string[class_result]} \t {int(hostipv4_to_num(ipv4_src))},{int(hostipv4_to_num(ipv4_dst))} \t count = {self.slice_class_count[class_result][int(hostipv4_to_num(ipv4_src))][int(hostipv4_to_num(ipv4_dst))]}")
             except:
                 print("unknown class")
                 class_result = "unknown"
 
         if class_result == "unknown":
-            self.slice_class_count[class_result] += 1    
+            try:
+                self.slice_class_count[class_result][int(hostipv4_to_num(ipv4_src))][int(hostipv4_to_num(ipv4_dst))] += 1    
+            except:                
+                #print("unknown L3")
+                pass
 
         #avoid mistake for next time classifier
         L3_ctrl = False
@@ -823,8 +831,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 self.add_flow(datapath = datapath,
                             priority = 1,
                             match = match,
-                            actions = actions,
-                            hard_timeout = self.hard_timeout["unknown"])
+                            actions = actions)
                 self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
             #out_port
@@ -855,8 +862,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self.add_flow(datapath = datapath,
                           priority = 1,
                           match = match,
-                          actions = actions,
-                          hard_timeout = self.hard_timeout[class_result])
+                          actions = actions)
             self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["mac"][class_result] and eth_dst in self.outport_lish["mac"][class_result][switchid]:
             out_port = self.outport_lish["mac"][class_result][switchid][eth_dst]
@@ -868,8 +874,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self.add_flow(datapath = datapath,
                           priority = 1,
                           match = match,
-                          actions = actions,
-                          hard_timeout = self.hard_timeout[class_result])
+                          actions = actions)
             self._send_package(msg, datapath, in_port, actions)                
 
 
@@ -994,7 +999,6 @@ class SimpleSwitch13(app_manager.RyuApp):
     def _monitor(self):
         while True:
             for dpid, datapath in self.datapaths.items():
-                print('monitor')
                 self._request_stats(datapath)
             hub.sleep(self.sleep_period)
 
@@ -1012,7 +1016,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
-        print('monitor')
         body = ev.msg.body
         dpid = ev.msg.datapath.id
 
@@ -1050,7 +1053,6 @@ class SimpleSwitch13(app_manager.RyuApp):
                                 "-------- -------- -------- ")
 
                 for stat in sorted(body, key = attrgetter("port_no")):
-                    self.duration_sec = stat.duration_sec
                     if dpid in self.mininetSwitchDict.keys():
                         if stat.port_no < (len(self.mininetPortDict[dpid])+1):     
                             dstdpid = self.mininetPortDict[dpid][stat.port_no]
