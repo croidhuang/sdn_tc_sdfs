@@ -43,7 +43,7 @@ def num_to_hostmac(host_num):
         else:
             host_mac_addr = host_mac_addr+macform[i]+":"
     return host_mac_addr
-    
+
 def hostmac_to_num(hostmac):
     return int(str(hostmac).replace(":",""),16)
 
@@ -77,7 +77,7 @@ def hostipv4_to_num(host_ipv4_addr):
     if host_num >= 16777216:
         print("too many host ipv4 gg")
 
-    return host_num      
+    return host_num 
 
 def num_to_switchmac(switch_num):
     switch_num=str(hex(switch_num)).lstrip("0x")
@@ -104,11 +104,11 @@ def num_to_switchmac(switch_num):
             switch_mac_addr = switch_mac_addr+macform[i]
         else:
             switch_mac_addr = switch_mac_addr+macform[i]+":"
-    return switch_mac_addr    
+    return switch_mac_addr
 
 def clienttraffictype_to_L4port(traffictype,client):
     L4port=traffictype*10000+client*1000
-    return L4port 
+    return L4port
 
 def L4port_to_clienttraffictype(L4port):
     L4port=str(L4port).zfill(5)
