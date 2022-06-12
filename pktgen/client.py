@@ -49,7 +49,7 @@ def host_traffic_gen(hostid):
         chars=string.ascii_letters
         payload="".join(random.choice(chars) for i in range(length))
         return payload
-    
+
     isd_dict={i:{(G_to_M(s),G_to_M(d)):[] \
               for d in topo_G.nodes() for s in topo_G.nodes()}\
               for i in topo_SLICENDICT.keys()}
@@ -95,13 +95,13 @@ def send_flow(i,srcid,dstid):
     myL2socket = conf.L2socket(iface=myinterface)
     #print(f"client {str(hostid)} INNTER_ARRIVAL_TIME[{i}]={INNTER_ARRIVAL_TIME[i]} \t NUM_PKT[{i}]={NUM_PKT[i]*len(flow[i][(srcid,dstid)])}")
     sendp(flow[i][(srcid,dstid)],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)
-   
+
 def pre_send_flow(i,srcid,dstid):
     myinterface="h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface=myinterface)
     #print(f"client {str(hostid)} INNTER_ARRIVAL_TIME[{i}]={INNTER_ARRIVAL_TIME[i]} \t NUM_PKT[{i}]=pre len={len(flow[i][(srcid,dstid)])}")
     sendp(flow[i][(srcid,dstid)],count=len(flow[i][(srcid,dstid)]),iface=myinterface,verbose=False,socket=myL2socket)
-    
+
     """
     prevt=0
 
@@ -111,22 +111,22 @@ def pre_send_flow(i,srcid,dstid):
     for rrr in range(10):
         myL2socket = conf.L2socket(iface=myinterface)
         currt=time.time()
-        prevt=currt 
+        prevt=currt
         sendp(flow[i][(srcid,dstid)],count=10,iface=myinterface,verbose=False,socket=myL2socket)
         currt=time.time()
         sumL2+=(currt-prevt)
         print(f"interL2={currt-prevt}")
-        
+
         myL3socket = conf.L3socket(iface=myinterface)
         currt=time.time()
-        prevt=currt 
+        prevt=currt
         sendp(flow[i][(srcid,dstid)],count=10,iface=myinterface,verbose=False,socket=myL3socket)
         currt=time.time()
         sumL3+=(currt-prevt)
         print(f"interL3={currt-prevt}")
 
         currt=time.time()
-        prevt=currt 
+        prevt=currt
         sendpfast(flow[i][(srcid,dstid)],loop=10,iface=myinterface,file_cache=True)
         currt=time.time()
         sumFast+=(currt-prevt)
@@ -146,7 +146,7 @@ def pre_send_flow(i,srcid,dstid):
     """
     myL3socket = conf.L3socket(iface=myinterface)
     currt=time.time()
-    prevt=currt 
+    prevt=currt
     for pkt in flow[i][(srcid,dstid)]:
         myL3socket.send(pkt)
     currt=time.time()
@@ -154,7 +154,7 @@ def pre_send_flow(i,srcid,dstid):
 
     myL2socket = conf.L2socket(iface=myinterface)
     currt=time.time()
-    prevt=currt 
+    prevt=currt
     sendp(flow[i][(srcid,dstid)],iface=myinterface,verbose=False,socket=myL2socket)
     currt=time.time()
     print(f"inter1={currt-prevt}")
