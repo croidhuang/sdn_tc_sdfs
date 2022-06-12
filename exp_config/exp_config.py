@@ -243,8 +243,9 @@ def __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME):
 def __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME):
     MININET_BW = {}
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
-        c = 1
         #c = float(1/TOTAL_TIME)
+        c = 1        
+        #mininet unit is MBbit, M = 2^20~1000000, 1Byte = 8bit
         MININET_BW[(v1, v2)] = float(EDGE_BANDWIDTH_G[v1][v2]['weight'] * c / (2**20) * 8)
     if print_ctrl == True:
         print(MININET_BW)
@@ -344,8 +345,7 @@ if EXP_TYPE == "test":
     if print_ctrl == True:
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
-
-    #mininet unit is MBytes 2^20~1000000, 1Byte = 8bit
+    
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
 
 
@@ -434,7 +434,6 @@ elif EXP_TYPE == "scheduling":
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
 
-    #mininet unit is MBytes 2^20~1000000, 1Byte = 8bit
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
 
 
@@ -457,21 +456,25 @@ if EXP_TYPE == "routing":
     nodelist = [i for i in range(topo_n)]
 
     #random edgelist
-    edgedict = {(u, v):0 for u in range(topo_n) for v in range(topo_n)}
-    edgecntdict={u:0 for u in range(topo_n)}
-    for u in range(topo_n):
+    edgedict = {(u, v):0 for u in nodelist for v in nodelist}
+    edgecntdict={u:0 for u in nodelist}
+    for u in nodelist:
         # ensure connect
-        while (fixed_connect_v:=random.randrange(0, topo_n)) == u:
-            fixed_connect_v = random.randrange(0, topo_n)
+        choice_node_list = list(nodelist.copy())
+        choice_node_list = [v for v in choice_node_list if v != u]
+        fixed_connect_v_list = random.sample(choice_node_list, 1)       
+        choice_node_list = [v for v in choice_node_list if v not in fixed_connect_v_list]
+        other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
+        other_connect_v_list = random.sample(set(choice_node_list), other_connect_v_range)
 
         # random add edge u>v only (u, v) no (v, u)
-        for v in range(topo_n):
-            if  v == fixed_connect_v:
+        for v in nodelist:
+            if  v == fixed_connect_v_list:
                 if u<v:
                     edgedict[(u, v)]+=1
                 elif v<u:
                     edgedict[(v, u)]+=1
-            elif random.random() < ((edge_min_connect-1)/topo_n):
+            elif v in other_connect_v_list:
                 if u<v:
                     edgedict[(u, v)]+=1
                 elif v<u:
@@ -552,23 +555,23 @@ if EXP_TYPE == "routing":
 
         pair_list=[]
         traffic_cnt=[]
-        for e in i_dict.keys():
-            #shffle list
+        #shffle list
+        for e in i_dict.keys():            
             if random.random() > historytraffic_send_ratio:
                 continue
             else:
                 pair_list.append(e)
                 traffic_cnt.append(0)
             scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale)
-            #gen
-            for p in pair_list:
-                v1=p[0]
-                v2=p[1]
-                HISTORYTRAFFIC[i][(v1, v2)] = int(\
-                    ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * \
-                    float(1/INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]]) * \
-                    scaledict[p])
-                sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+        #gen
+        for p in pair_list:
+            v1=p[0]
+            v2=p[1]
+            HISTORYTRAFFIC[i][(v1, v2)] = int(\
+                ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * \
+                float(1/INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]]) * \
+                scaledict[p])
+            sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
 
     if print_ctrl == True:
         pprint.pprint(HISTORYTRAFFIC)
@@ -581,7 +584,7 @@ if EXP_TYPE == "routing":
     sum_HISTORYTRAFFIC = sum_HISTORYTRAFFIC
     #cfs     50%     4.10e+10
     mininet_cpu_py = (4.10e+10)
-    mininet_cpu_py = mininet_cpu_py/(10**6)/8
+    mininet_cpu_py = mininet_cpu_py/8/(2**20)
     if int(sum_HISTORYTRAFFIC/(2**20)) > mininet_cpu_py:
         print(f"{sum_HISTORYTRAFFIC/(2**20)}>{mininet_cpu_py}")
     else:
@@ -615,10 +618,8 @@ if EXP_TYPE == "routing":
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
 
 
-
     #aging
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
-    #mininet unit is MBytes 2^20~1000000, 1Byte = 8bit
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
