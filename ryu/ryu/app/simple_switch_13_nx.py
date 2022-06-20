@@ -517,8 +517,14 @@ class SimpleSwitch13(app_manager.RyuApp):
             hub.sleep(self.sleep_period)
 
     #different switch to lowload slice
+
     def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):
-        dsts = int(self.mininetHostDict[int(hostipv4_to_num(dst_host))])
+        if layerid == "ipv4":
+            dsts = int(self.mininetHostDict[int(hostipv4_to_num(dst_host))])
+        elif layerid == "mac":
+            dsts = int(self.mininetHostDict[int(hostmac_to_num(dst_host))])
+        else:
+            return out_port
 
         slice_num = class_result
         if self.Scheuduler_ctrl == False:
@@ -531,8 +537,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         if switchid in self.mininetSwitchDict.keys():
             ###WARING
             #get value
-            flow = self.slice_class_count[class_result][switchid][dst_host].copy()
-            latency = self.latency[switchid][dst_host].copy()
+            flow = self.slice_class_count[class_result][switchid].copy()
+            latency = self.latency[switchid].copy()
             bandfree = {i:0 for i in range(self.SliceNum)}
             for pi in self.SliceDict.keys():
                 p_gen = self._src_to_dst_path(subG = self.topo_slice_G[pi], s = switchid, dsts = dsts)
