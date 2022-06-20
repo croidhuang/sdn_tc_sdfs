@@ -27,7 +27,7 @@ def check_gogo_time(timestring):
 time
 """
 
-ROUTING_TYPE = "algo" #bellman-ford, algo
+ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
 SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
@@ -35,7 +35,7 @@ EXP_TYPE = "routing" #"scheduling", "routing", "test"
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-06-12 19:58:00" #custom
+timestring = "2022-06-20 18:57:00" #custom
 timestamp = check_gogo_time(timestring)
 GOGO_TIME = timestamp #0, timestamp
 
@@ -597,7 +597,6 @@ if EXP_TYPE == "routing":
         EDGE_BANDWIDTH_G[v1][v2]['weight'] = 0
         EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']
 
-
     #shuffle bandwidth
     pair_list=[]
     traffic_cnt=[]
@@ -615,7 +614,7 @@ if EXP_TYPE == "routing":
 
     if print_ctrl == True:
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
-            print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
+            print(f"({v1},{v2}):{EDGE_BANDWIDTH_G[v1][v2]['weight']}")
 
 
     #aging
