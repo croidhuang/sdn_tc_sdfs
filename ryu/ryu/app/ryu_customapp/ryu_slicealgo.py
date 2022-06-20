@@ -7,6 +7,8 @@ import matplotlib.colors
 import random
 import os
 
+import pprint
+
 from exp_utils.exp_utils import G_to_M
 
 def _removeCycle(T, spath):
@@ -306,8 +308,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, png_name)
 
         #sort
-        sorted_HistoryTraffic = {k:v for k, v in sorted(HISTORYTRAFFIC[i].items(), key = lambda item:item[1], reverse = True)}
-
+        sorted_HistoryTraffic = {k:v for k, v in sorted(HISTORYTRAFFIC[i].items(), key = lambda item:item[1], reverse = True)}       
 
 
         #shortest path
@@ -429,7 +430,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
 
         png_name = "topo_sliceG[7]_all.png"
         png_path = os.path.join("./exp_topopng/"+png_name)
-        plt.title("all tree")
+        plt.title("all tree loading")
         plt.savefig(png_path, dpi=300)
         plt.clf()
 
