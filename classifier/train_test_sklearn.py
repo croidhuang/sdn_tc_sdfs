@@ -1,87 +1,127 @@
 import os
 
+b255dict={
+    0:'IPv4_Version_IHL___IPv6_Version_Traffic_class1', 
+    1:'IPv4_DSCP_ECN___IPv6_Traffic_class2_Flow_label1', 
+    2:'IPv4_Total_Length1___IPv6_Flow_label2', 
+    3:'IPv4_Total_Length2___IPv6_Flow_label3', 
+    4:'IPv4_Id1___IPv6_Payload_length1', 
+    5:'IPv4_Id2___IPv6_Payload_length2', 
+    6:'IPv4_Flags_Fragment_Offset1___IPv6_Next_header', 
+    7:'IPv4_Fragment_Offset2___IPv6_Hop_limit', 
+    8:'IPv4_Time_To_Live___IPv6_src_IP_Addr1', 
+    9:'IPv4_Protocol___IPv6_src_IP_Addr2', 
+    10:'IPv4_Header_Checksum1___IPv6_src_IP_Addr3', 
+    11:'IPv4_Header_Checksum2___IPv6_src_IP_Addr4', 
+    12:'IPv4_src_IP_Addr1___IPv6_src_IP_Addr5', 
+    13:'IPv4_src_IP_Addr2___IPv6_src_IP_Addr6', 
+    14:'IPv4_src_IP_Addr3___IPv6_src_IP_Addr7', 
+    15:'IPv4_src_IP_Addr4___IPv6_src_IP_Addr8', 
+    16:'IPv4_dst_IP_Addr1___IPv6_src_IP_Addr9', 
+    17:'IPv4_dst_IP_Addr2___IPv6_src_IP_Addr10', 
+    18:'IPv4_dst_IP_Addr3___IPv6_src_IP_Addr11', 
+    19:'IPv4_dst_IP_Addr4___IPv6_src_IP_Addr12', 
+    20:'TCP_UDP_src_port1___IPv6_src_IP_Addr13', 
+    21:'TCP_UDP_src_port2___IPv6_src_IP_Addr14', 
+    22:'TCP_UDP_dst_port1___IPv6_src_IP_Addr15', 
+    23:'TCP_UDP_dst_port2___IPv6_src_IP_Addr16', 
+    24:'TCP_seqnum1_UDP_length1___IPv6_dst_IP_Addr1', 
+    25:'TCP_seqnum2_UDP_length2___IPv6_dst_IP_Addr2', 
+    26:'TCP_seqnum3_UDP_checksum1___IPv6_dst_IP_Addr3', 
+    27:'TCP_seqnum4_UDP_checksum2___IPv6_dst_IP_Addr4', 
+    28:'TCP_acknum1___IPv6_dst_IP_Addr5', 
+    29:'TCP_acknum2___IPv6_dst_IP_Addr6', 
+    30:'TCP_acknum3___IPv6_dst_IP_Addr7', 
+    31:'TCP_acknum4___IPv6_dst_IP_Addr8', 
+    32:'TCP_Data_offset_Reserved_NS___IPv6_dst_IP_Addr9', 
+    33:'TCP_flagbit___IPv6_dst_IP_Addr10', 
+    34:'TCP_Window_Size1___IPv6_dst_IP_Addr11', 
+    35:'TCP_Window_Size2___IPv6_dst_IP_Addr12', 
+    36:'TCP_Checksum1___IPv6_dst_IP_Addr13', 
+    37:'TCP_Checksum2___IPv6_dst_IP_Addr14', 
+    38:'TCP_Urgent_pointer1___IPv6_dst_IP_Addr15', 
+    39:'TCP_Urgent_pointer2___IPv6_dst_IP_Addr16', 
+}
+
+ipandport_dict={
+    0: 'src_ip_1', 
+    1: 'src_ip_2', 
+    2: 'src_ip_3', 
+    3: 'src_ip_4', 
+    4: 'src_ip_5', 
+    5: 'src_ip_6', 
+    6: 'src_ip_7', 
+    7: 'src_ip_8', 
+    8: 'src_ip_9', 
+    9: 'src_ip_10', 
+    10: 'src_ip_11', 
+    11: 'src_ip_12', 
+    12: 'src_ip_13', 
+    13: 'src_ip_14', 
+    14: 'src_ip_15', 
+    15: 'src_ip_16', 
+    16: 'dst_ip_1', 
+    17: 'dst_ip_2', 
+    18: 'dst_ip_3', 
+    19: 'dst_ip_4', 
+    20: 'dst_ip_5', 
+    21: 'dst_ip_6', 
+    22: 'dst_ip_7', 
+    23: 'dst_ip_8', 
+    24: 'dst_ip_9', 
+    25: 'dst_ip_10', 
+    26: 'dst_ip_11', 
+    27: 'dst_ip_12', 
+    28: 'dst_ip_13', 
+    29: 'dst_ip_14', 
+    30: 'dst_ip_15', 
+    31: 'dst_ip_16', 
+    32: 'src_port_1', 
+    33: 'src_port_2', 
+    34: 'dst_port_1', 
+    35: 'dst_port_2', 
+ }
+
 headerfield_dict={
-    0: 'ipv4_version',
-    1: 'ipv4_ihl',
-    2: 'ipv4_tos',
-    3: 'ipv4_len',
-    4: 'ipv4_id',
-    5: 'ipv4_flags',
-    6: 'ipv4_frag',
-    7: 'ipv4_ttl',
-    8: 'ipv4_proto',
-    9: 'ipv4_chksum',
-    10: 'ipv4_src',
-    11: 'ipv4_dst',
-    12: 'ipv4_options',
-    13: 'ipv6_version',
-    14: 'ipv6_tc',
-    15: 'ipv6_fl',
-    16: 'ipv6_plen',
-    17: 'ipv6_nh',
-    18: 'ipv6_hlim',
-    19: 'ipv6_src',
-    20: 'ipv6_dst',
-    21: 'tcp_sport',
-    22: 'tcp_dport',
-    23: 'tcp_seq',
-    24: 'tcp_ack',
-    25: 'tcp_dataofs',
-    26: 'tcp_reserved',
-    27: 'tcp_flags',
-    28: 'tcp_window',
-    29: 'tcp_chksum',
-    30: 'tcp_urgptr',
-    31: 'tcp_options',
-    32: 'udp_sport',
-    33: 'udp_dport',
-    34: 'udp_len',
+    0: 'ipv4_version', 
+    1: 'ipv4_ihl', 
+    2: 'ipv4_tos', 
+    3: 'ipv4_len', 
+    4: 'ipv4_id', 
+    5: 'ipv4_flags', 
+    6: 'ipv4_frag', 
+    7: 'ipv4_ttl', 
+    8: 'ipv4_proto', 
+    9: 'ipv4_chksum', 
+    10: 'ipv4_src', 
+    11: 'ipv4_dst', 
+    12: 'ipv4_options', 
+    13: 'ipv6_version', 
+    14: 'ipv6_tc', 
+    15: 'ipv6_fl', 
+    16: 'ipv6_plen', 
+    17: 'ipv6_nh', 
+    18: 'ipv6_hlim', 
+    19: 'ipv6_src', 
+    20: 'ipv6_dst', 
+    21: 'tcp_sport', 
+    22: 'tcp_dport', 
+    23: 'tcp_seq', 
+    24: 'tcp_ack', 
+    25: 'tcp_dataofs', 
+    26: 'tcp_reserved', 
+    27: 'tcp_flags', 
+    28: 'tcp_window', 
+    29: 'tcp_chksum', 
+    30: 'tcp_urgptr', 
+    31: 'tcp_options', 
+    32: 'udp_sport', 
+    33: 'udp_dport', 
+    34: 'udp_len', 
     35: 'udp_chksum'
 }
 
-b255dict={
-    0:'IPv4_Version_IHL___IPv6_Version_Traffic_class1',
-    1:'IPv4_DSCP_ECN___IPv6_Traffic_class2_Flow_label1',
-    2:'IPv4_Total_Length1___IPv6_Flow_label2',
-    3:'IPv4_Total_Length2___IPv6_Flow_label3',
-    4:'IPv4_Id1___IPv6_Payload_length1',
-    5:'IPv4_Id2___IPv6_Payload_length2',
-    6:'IPv4_Flags_Fragment_Offset1___IPv6_Next_header',
-    7:'IPv4_Fragment_Offset2___IPv6_Hop_limit',
-    8:'IPv4_Time_To_Live___IPv6_src_IP_Addr1',
-    9:'IPv4_Protocol___IPv6_src_IP_Addr2',
-    10:'IPv4_Header_Checksum1___IPv6_src_IP_Addr3',
-    11:'IPv4_Header_Checksum2___IPv6_src_IP_Addr4',
-    12:'IPv4_src_IP_Addr1___IPv6_src_IP_Addr5',
-    13:'IPv4_src_IP_Addr2___IPv6_src_IP_Addr6',
-    14:'IPv4_src_IP_Addr3___IPv6_src_IP_Addr7',
-    15:'IPv4_src_IP_Addr4___IPv6_src_IP_Addr8',
-    16:'IPv4_dst_IP_Addr1___IPv6_src_IP_Addr9',
-    17:'IPv4_dst_IP_Addr2___IPv6_src_IP_Addr10',
-    18:'IPv4_dst_IP_Addr3___IPv6_src_IP_Addr11',
-    19:'IPv4_dst_IP_Addr4___IPv6_src_IP_Addr12',
-    20:'TCP_UDP_src_port1___IPv6_src_IP_Addr13',
-    21:'TCP_UDP_src_port2___IPv6_src_IP_Addr14',
-    22:'TCP_UDP_dst_port1___IPv6_src_IP_Addr15',
-    23:'TCP_UDP_dst_port2___IPv6_src_IP_Addr16',
-    24:'TCP_seqnum1_UDP_length1___IPv6_dst_IP_Addr1',
-    25:'TCP_seqnum2_UDP_length2___IPv6_dst_IP_Addr2',
-    26:'TCP_seqnum3_UDP_checksum1___IPv6_dst_IP_Addr3',
-    27:'TCP_seqnum4_UDP_checksum2___IPv6_dst_IP_Addr4',
-    28:'TCP_acknum1___IPv6_dst_IP_Addr5',
-    29:'TCP_acknum2___IPv6_dst_IP_Addr6',
-    30:'TCP_acknum3___IPv6_dst_IP_Addr7',
-    31:'TCP_acknum4___IPv6_dst_IP_Addr8',
-    32:'TCP_Data_offset_Reserved_NS___IPv6_dst_IP_Addr9',
-    33:'TCP_flagbit___IPv6_dst_IP_Addr10',
-    34:'TCP_Window_Size1___IPv6_dst_IP_Addr11',
-    35:'TCP_Window_Size2___IPv6_dst_IP_Addr12',
-    36:'TCP_Checksum1___IPv6_dst_IP_Addr13',
-    37:'TCP_Checksum2___IPv6_dst_IP_Addr14',
-    38:'TCP_Urgent_pointer1___IPv6_dst_IP_Addr15',
-    39:'TCP_Urgent_pointer2___IPv6_dst_IP_Addr16',
-}
-    
+
 
 #要驗證的模型
 try:
@@ -90,40 +130,38 @@ except:
     print("no model file, please check")
 
 #輸入輸出目錄
-choice_dataset = 'headerfield'
-headerdict=headerfield_dict
+choice_dataset = 'b255v6'   
 outputpath = './'
+
 """
 #記得改路徑字串，該資料夾所有，*.parquet或*.csv
 """
-
-
 def dataset_path(choice_dataset):
-    if choice_dataset == 'b255':
-        trainpath = 'D:/preprocess_data/b255/*.parquet'
-        testpath = 'D:/preprocess_data/b255/*.parquet'
-    elif choice_dataset == 'b255v6':
-        trainpath = 'D:/preprocess_data/b255v6/*.parquet'
-        testpath = 'D:/preprocess_data/b255v6/*.parquet'
+    if choice_dataset == 'b255v6':
+        trainpath = './pcap/b255v6/*.parquet'
+        testpath = './pcap/b255v6/*.parquet'
+        headerdict = b255dict
     elif choice_dataset == 'ipandport':
         trainpath = './pcap/ipandport/*.parquet'
         testpath = './pcap/ipandport/*.parquet'
+        headerdict = ipandport_dict
     elif choice_dataset == 'headerfield':
         trainpath = './pcap/headerfield/*.parquet'
-        testpath = './pcap/headerfield/*.parquet'    
+        testpath = './pcap/headerfield/*.parquet' 
+        headerdict = headerfield_dict   
     else:
         print("choice_dataset gg")
 
-    return trainpath, testpath
+    return trainpath, testpath, headerdict
 
-trainpath, testpath = dataset_path(choice_dataset)
+trainpath, testpath, headerdict = dataset_path(choice_dataset)
 
-#choice_random每個pcap取幾個或取比例,注意0是比例全部(1是1個非比例1),b255一個檔案10,000,全部11,000,000記憶體可能GG
-#minqty是最低取的數量,replace是數量不足能不能重複取
+#choice_random每個pcap取幾個或取比例, 注意0是比例全部(1是1個非比例1), b255一個檔案10, 000, 全部11, 000, 000記憶體可能GG
+#minqty是最低取的數量, replace是數量不足能不能重複取
 choice_random = 0.004
 minqty_threshold = 100
 randomreplace = 'False'
-#size指的是取的比例,1跟0是原地考照
+#size指的是取的比例, 1跟0是原地考照
 train_size = 0.8
 test_size = 0.2
 
@@ -131,7 +169,7 @@ test_size = 0.2
 #2train_test_split same rate "all class"
 #3RandomUnderSampler resample to "min(all class)"
 #4StratifiedShuffleSplit same rate "each class"
-choice_split = 2
+choice_split = 3
 
 #1原地考照
 #2同train, test
@@ -141,7 +179,7 @@ choice_train = 2
 #控制要不要執行時候印
 show_ctrl = 0
 #要不要標題，不然存一堆會不知道誰是誰
-title_ctrl = 0
+title_ctrl = 1
 #要不要計算跟存混淆矩陣
 cal_confusion_matrix = 1
 #要不要計算跟存決策樹(要是樹的才能產生)
@@ -417,7 +455,7 @@ def classifier_c45clf(X_train, y_train, X_test):
     classifier = 'C4.5'
     c45clf = C45()
     c45clf.fit(X_train, y_train)
-    #print_tree(c45clf,classifier)
+    #print_tree(c45clf, classifier)
     y_test_predicted = c45clf.predict(X_test)
     save_models(c45clf, classifier)
     return y_test_predicted, classifier
@@ -437,16 +475,16 @@ def classifier_lightgbm(X_train, y_train, X_test):
     #Decision Tree
     classifier = 'LightGBM'
     params_sklearn = {
-        'learning_rate': 0.1,
-        'max_bin': 64,
-        'num_leaves': 128,
-        'max_depth': 16,
+        'learning_rate': 0.1, 
+        'max_bin': 64, 
+        'num_leaves': 128, 
+        'max_depth': 16, 
 
-        'reg_alpha': 0.1,
-        'reg_lambda': 0.2,
+        'reg_alpha': 0.1, 
+        'reg_lambda': 0.2, 
 
-        'objective': 'multiclass',
-        'n_estimators': 512,
+        'objective': 'multiclass', 
+        'n_estimators': 512, 
     }
 
     gbm = lightgbm.LGBMClassifier(**params_sklearn)
@@ -479,6 +517,7 @@ def file_timestamp():
 
 
 def print_result(test_y_test, y_test_predicted, classifier):
+    print(test_y_test, y_test_predicted)
     ID_TO_APP = {
     0: 'AIM Chat', 
     1: 'Email', 
@@ -508,6 +547,9 @@ def print_result(test_y_test, y_test_predicted, classifier):
     #print(test_y_test)
     patht, titlet = file_timestamp()
     result_title = classifier+'\n'+trainpath+'\n'+titlet
+    dir_name = "results"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     png_title = patht
 
     #colormaps cmap=
@@ -517,8 +559,8 @@ def print_result(test_y_test, y_test_predicted, classifier):
         print(confusion_matrix(test_y_test, y_test_predicted, labels=labelslist))
         cm_report = confusion_matrix(test_y_test, y_test_predicted, labels=labelslist, normalize=None)
         sns.set(font_scale=0.35)
-        sns.heatmap(pd.DataFrame(cm_report).iloc[:,:].T, annot = True, fmt=".4g", cmap = "Blues")
-        pngoutput_path = os.path.join(outputpath+'/results/'+ png_title+'.'+'confusion_matrix'+'.'+classifier +'.png')
+        sns.heatmap(pd.DataFrame(cm_report).iloc[:, :].T, annot = True, fmt=".4g", cmap = "Blues")        
+        pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ png_title+'.'+'confusion_matrix'+'.'+classifier +'.png')
         if title_ctrl == 1:
             plt.title(result_title)
         plt.savefig(pngoutput_path, dpi=300)
@@ -527,13 +569,13 @@ def print_result(test_y_test, y_test_predicted, classifier):
         plt.clf()
     
     #classification_report
-    print(classification_report(test_y_test, y_test_predicted,labels=labelslist,target_names=targetnameslist, digits = 4))
-    clf_report = classification_report(test_y_test, y_test_predicted,labels=labelslist,target_names=targetnameslist, digits = 4, output_dict = True)
-    mask=pd.DataFrame(clf_report).iloc[:,:].T
+    print(classification_report(test_y_test, y_test_predicted, labels=labelslist, target_names=targetnameslist, digits = 4))
+    clf_report = classification_report(test_y_test, y_test_predicted, labels=labelslist, target_names=targetnameslist, digits = 4, output_dict = True)
+    mask=pd.DataFrame(clf_report).iloc[:, :].T
 
     #分區著色
     sns.set(font_scale=0.5)
-    #nocolor[row,column]
+    #nocolor[row, column]
     mask3 = mask.copy()
     mask3.iloc[:-3, :] = float('nan')
     sns.heatmap(mask3, annot=True, fmt=".4g", cmap="binary", cbar=False)
@@ -545,7 +587,7 @@ def print_result(test_y_test, y_test_predicted, classifier):
     mask1.iloc[:, -1] = float('nan')
     mask1.iloc[-3:, :] = float('nan')
     sns.heatmap(mask1, annot=True, fmt=".4g", cmap="Blues")
-    pngoutput_path = os.path.join(outputpath+'/results/' + png_title+'.'+'classification_report'+'.'+'.'+classifier + '.png')
+    pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/' + png_title+'.'+'classification_report'+'.'+'.'+classifier + '.png')
 
     if title_ctrl == 1:
         plt.title(result_title)
@@ -554,9 +596,13 @@ def print_result(test_y_test, y_test_predicted, classifier):
         plt.show()
     plt.clf()
 
-def save_models(clf,classifier):
+def save_models(clf, classifier):
     patht, titlet = file_timestamp()
-    skloutput_path = os.path.join(outputpath+'/models/' +
+    dir_name = "models"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+    skloutput_path = os.path.join(outputpath+'/'+
+                                  dir_name+'/' +
                                   choice_dataset+' ' +
                                   classifier+' ' +
                                   'choice_random='+str(choice_random)+' ' +
@@ -609,29 +655,32 @@ def print_tree(clf, classifier):
                 print("{space}node = {node} is a split node: "
                     "go to node {left} if X[:, {feature}] <= {threshold} "
                     "else to node {right}.".format(
-                        space = node_depth[i] * "\t",
-                        node = i,
-                        left = children_left[i],
-                        feature = feature[i],
-                        threshold = threshold[i],
+                        space = node_depth[i] * "\t", 
+                        node = i, 
+                        left = children_left[i], 
+                        feature = feature[i], 
+                        threshold = threshold[i], 
                         right = children_right[i]))
         """
         We can compare the above output to the plot of the decision tree.
         END example
         """
 
-    patht,titlet = file_timestamp()
+    patht, titlet = file_timestamp()    
+    dir_name = "results"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
     png_title = patht
-    pngoutput_path = os.path.join(outputpath+'/results/'+ png_title+'.'+'plottree'+'.'+'.'+classifier +'.png')
+    pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ png_title+'.'+'plottree'+'.'+'.'+classifier +'.png')
     result_title = titlet
     result_title = classifier+'\n'+trainpath+'\n'+result_title
-    dot_data = export_graphviz(clf,
-                               out_file=None,
-                               feature_names=headerdict,
-                               filled=True,
+    dot_data = export_graphviz(clf, 
+                               out_file=None, 
+                               feature_names=headerdict, 
+                               filled=True, 
                                rounded=True)
     pydot_graph = pydotplus.graph_from_dot_data(dot_data)
-    pydot_graph.set_size('"600,300!"')
+    pydot_graph.set_size('"100, 100!"')
     pydot_graph.write_png(pngoutput_path)
 
 
@@ -708,7 +757,4 @@ def main():
     print('\n', '================ We Can Only See A Short Distance Ahead. ================', '\n')  
 
 if __name__ == '__main__':
-    clsf=[1,2,3,4,5,6,9]
-    for i in clsf:
-        choice_classfier = i
-        main()
+    main()
