@@ -517,7 +517,7 @@ def file_timestamp():
 
 
 def print_result(test_y_test, y_test_predicted, classifier):
-    print(test_y_test, y_test_predicted)
+    #print(test_y_test, y_test_predicted)
     ID_TO_APP = {
     0: 'AIM Chat', 
     1: 'Email', 
@@ -550,7 +550,7 @@ def print_result(test_y_test, y_test_predicted, classifier):
     dir_name = "results"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-    png_title = patht
+    svg_title = patht
 
     #colormaps cmap=
     #https://matplotlib.org/stable/tutorials/colors/colormaps.html
@@ -560,10 +560,10 @@ def print_result(test_y_test, y_test_predicted, classifier):
         cm_report = confusion_matrix(test_y_test, y_test_predicted, labels=labelslist, normalize=None)
         sns.set(font_scale=0.35)
         sns.heatmap(pd.DataFrame(cm_report).iloc[:, :].T, annot = True, fmt=".4g", cmap = "Blues")        
-        pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ png_title+'.'+'confusion_matrix'+'.'+classifier +'.png')
+        svgoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ svg_title+'.'+'confusion_matrix'+'.'+classifier +'.svg')
         if title_ctrl == 1:
             plt.title(result_title)
-        plt.savefig(pngoutput_path, dpi=300)
+        plt.savefig(svgoutput_path, format='svg')
         if show_ctrl == 1:
             plt.show()
         plt.clf()
@@ -587,11 +587,11 @@ def print_result(test_y_test, y_test_predicted, classifier):
     mask1.iloc[:, -1] = float('nan')
     mask1.iloc[-3:, :] = float('nan')
     sns.heatmap(mask1, annot=True, fmt=".4g", cmap="Blues")
-    pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/' + png_title+'.'+'classification_report'+'.'+'.'+classifier + '.png')
+    svgoutput_path = os.path.join(outputpath+'/'+dir_name+'/' + svg_title+'.'+'classification_report'+'.'+'.'+classifier + '.svg')
 
     if title_ctrl == 1:
         plt.title(result_title)
-    plt.savefig(pngoutput_path, dpi=300)
+    plt.savefig(svgoutput_path, format='svg')
     if show_ctrl == 1:
         plt.show()
     plt.clf()
@@ -670,8 +670,8 @@ def print_tree(clf, classifier):
     dir_name = "results"
     if not os.path.exists(dir_name):
         os.makedirs(dir_name)
-    png_title = patht
-    pngoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ png_title+'.'+'plottree'+'.'+'.'+classifier +'.png')
+    svg_title = patht
+    svgoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ svg_title+'.'+'plottree'+'.'+'.'+classifier +'.svg')
     result_title = titlet
     result_title = classifier+'\n'+trainpath+'\n'+result_title
     dot_data = export_graphviz(clf, 
@@ -680,8 +680,8 @@ def print_tree(clf, classifier):
                                filled=True, 
                                rounded=True)
     pydot_graph = pydotplus.graph_from_dot_data(dot_data)
-    pydot_graph.set_size('"100, 100!"')
-    pydot_graph.write_png(pngoutput_path)
+    #pydot_graph.set_size('"100, 100!"') #png
+    pydot_graph.write_svg(svgoutput_path)
 
 
 def main():
