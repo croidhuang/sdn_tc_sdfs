@@ -183,7 +183,7 @@ def _B_to_GB(input_B, num_float=1):
                 output_GB = str(input_B)+"GB"
     return output_GB
 
-def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, showG, labels, png_name):
+def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, showG, labels, dir_name, svg_name):
     nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
 
     node_labels={int(n):str(int(n)+1) for n in allo_G.nodes()}
@@ -196,12 +196,12 @@ def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, fo
             edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
         nx.draw_networkx_edge_labels(showG, topo_pos, edge_labels = edge_labels)
 
-    png_path = os.path.join("./exp_topopng/"+png_name)
-    plt.savefig(png_path, dpi=300)
+    svg_path = os.path.join("./"+dir_name+"/"+svg_name)
+    plt.savefig(svg_path, format="svg")
     plt.clf()
 
 
-def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, showG, i, icount):
+def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, showG, i, icount, dir_name):
     nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
 
     node_labels={int(n):str(int(n)+1) for n in allo_G.nodes()}
@@ -213,15 +213,15 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to
         edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
     nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
-    png_name = "topo_sliceG["+str(i)+"]"+"_"+str(icount)+".png"
-    png_path = os.path.join("./exp_topopng/"+png_name)
+    svg_name = "topo_sliceG["+str(i)+"]"+"_"+str(icount)+".svg"
+    svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
     plt.title("traffic type "+str(i+1)+" (host "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to host "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
-    plt.savefig(png_path, dpi=300)
+    plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
 
-def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, showG, estG, i, icount):
+def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, showG, estG, i, icount, dir_name):
     nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
 
     node_labels={int(n):str(int(n)+1) for n in allo_G.nodes()}
@@ -237,11 +237,11 @@ def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_d
         edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
     nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
-    png_name = "topo_sliceG["+str(i)+"]"+str(icount)+".png"
-    png_path = os.path.join("./exp_topopng/"+png_name)
+    svg_name = "topo_sliceG["+str(i)+"]"+str(icount)+".svg"
+    svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
     plt.title("traffic type "+str(i+1)+" (host "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to host "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
-    plt.savefig(png_path, dpi=300)
+    plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
 
@@ -268,6 +268,8 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
 
     used_Edge = {i:{u:{v:0 for v in allo_G.nodes()} for u in allo_G.nodes()}for i in range(SliceNum)}
 
+    topo_pos = nx.shell_layout(topo_G)
+
     #https://matplotlib.org/stable/gallery/color/named_colors.html
     node_color="tab:green"
     font_color="w"
@@ -281,14 +283,16 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         7: "tab:pink"
     }
 
-    topo_pos = nx.shell_layout(topo_G)
+    dir_name = "exp_toposvg"
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
 
     if SliceDraw_ctrl == True:
         #draw bandwidth
-        png_name = "topo_sliceG[7]"+"_G.png"
+        svg_name = "topo_sliceG[7]"+"_G.svg"
         edge_color = "whitesmoke"
         labels = True
-        _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, png_name)
+        _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, dir_name, svg_name)
 
     topo_sliceG = [ i for i in range(SliceNum) ]
     for i in range(SliceNum):
@@ -297,15 +301,15 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         topo_sliceG[i].add_nodes_from(allo_G.nodes())
         v_G = topo_sliceG[i].copy()
 
-        #number +1 when call print png
+        #number +1 when call print svg
         icount = 0
 
         if SliceDraw_ctrl == True:
             #draw G.V
-            png_name = "topo_sliceG["+str(i)+"]"+"_V.png"
+            svg_name = "topo_sliceG["+str(i)+"]"+"_V.svg"
             edge_color = "whitesmoke"
             labels = True
-            _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, png_name)
+            _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, dir_name, svg_name)
 
         #sort
         sorted_HistoryTraffic = {k:v for k, v in sorted(HISTORYTRAFFIC[i].items(), key = lambda item:item[1], reverse = True)}       
@@ -364,12 +368,12 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             if EstDraw_ctrl == True:
                 estadd_G = v_G.copy()
                 estadd_G = _addPath(estadd_G, spath_G)
-                icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
+                icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
 
             for v1, v2 in spath_G.edges():
                 topo_sliceG[i], loading_G, used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, used_Edge[i], trafficE, allo_G)
             if SliceDraw_ctrl == True:
-                icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount)
+                icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
 
 
 
@@ -402,13 +406,13 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                         if EstDraw_ctrl == True:
                             estadd_G = v_G.copy()
                             estadd_G.add_edge(v1,v2)
-                            icount=_draw_estcycle_G(topo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount)
+                            icount=_draw_estcycle_G(topo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
                         if _noCycle(estcycle_G):
                             topo_sliceG[i].add_edge(v1,v2)
                             used_Edge[i][v1][v2] += 1
                             used_Edge[i][v2][v1] += 1
                             if SliceDraw_ctrl == True:
-                                icount=_draw_subG(topo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount)
+                                icount=_draw_subG(topo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
                     if _isConnected(topo_sliceG[i]) == True:
                         _isConnected_ctrl = 1
                         break
@@ -416,11 +420,10 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                     break
 
     if SliceDraw_ctrl == True:
-        #allcolor in one png
+        #allcolor in one svg
         edge_labels = nx.get_edge_attributes(loading_G, 'weight')
         for v1, v2 in loading_G.edges():
             edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
-        #allcolor in one png
         nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
 
         for i in range(7):
@@ -428,10 +431,10 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             nx.draw_networkx(allo_G, topo_pos, labels=node_labels, nodelist = topo_sliceG[i].nodes(), edgelist = topo_sliceG[i].edges(), node_color=node_color, font_color=font_color, edge_color = node_dist_to_color[i+1], width = 4)
         nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
-        png_name = "topo_sliceG[7]_all.png"
-        png_path = os.path.join("./exp_topopng/"+png_name)
+        svg_name = "topo_sliceG[7]_all.svg"
+        svg_path = os.path.join("./"+dir_name+"/"+svg_name)
         plt.title("all tree loading")
-        plt.savefig(png_path, dpi=300)
+        plt.savefig(svg_path, format="svg")
         plt.clf()
 
     return topo_sliceG
