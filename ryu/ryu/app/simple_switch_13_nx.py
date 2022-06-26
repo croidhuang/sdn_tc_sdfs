@@ -171,20 +171,29 @@ class SimpleSwitch13(app_manager.RyuApp):
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
         file_name = time.time()
-        csv_outputfile = "./"+str(dir_name)+"/"+ str(file_name) + "_" + str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + ".csv"
-        self.csv_throughput_record_file = csv_outputfile
+        self.csv_throughput_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + ".csv"
+        self.csv_estBW_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + "_BW.csv"
 
-        with open(self.csv_throughput_record_file, "w") as csv_file:
+        with open(self.csv_throughput_record_filepath, "w") as csv_throughput_record_file:
             row = [GOGO_TIME]
             for csvsrcid,toswitchdict in self.mininetSwitchDict.items():
                 for csvportno in toswitchdict.values():
                     row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
                     row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
-            writer = csv.writer(csv_file)
+            writer = csv.writer(csv_throughput_record_file)
             writer.writerow(row)
             row = []
 
-
+        with open(self.csv_estBW_record_filepath, "w") as csv_estBW_record_file:
+            row = [GOGO_TIME]
+            for i in self.SliceDict.keys():
+                for u in self.mininetSwitchDict.keys():
+                    for v in self.mininetSwitchDict.keys():
+                        s=str(i)+","+str(u)+","+str(v)
+                        row.append(s)
+            writer = csv.writer(csv_estBW_record_file)
+            writer.writerow(row)
+            row = []
 
         #for classifier
         self.loaded_model = joblib.load(
@@ -292,12 +301,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] = EDGE_BANDWIDTH_G[s][dsts]['weight']
             self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)] = self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]
 
-        self.edge_bandfree = {u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys() }
-        for s,dsts in EDGE_BANDWIDTH_G.edges():
-            self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)] = EDGE_BANDWIDTH_G[s][dsts]['weight']
-            self.edge_bandwidth[G_to_M(dsts)][G_to_M(s)] = self.edge_bandwidth[G_to_M(s)][G_to_M(dsts)]
-
-        #slice (estimate)
+        #slice bandwidth (estimate)
         self.slice_bandfree = {i:{u:{v:1 for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()} for i in self.SliceDict.keys()}
         for u in self.mininetSwitchDict.keys():
             for v in self.mininetSwitchDict.keys():
@@ -307,7 +311,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         self.slice_BWaging_interval = EST_SLICE_AGING
         self.slice_BWaging_dict = {i:{u:{v:deque([0 for t in range(self.slice_BWaging_interval[i])], maxlen = self.slice_BWaging_interval[i]) for v in self.mininetSwitchDict.keys()} for u in self.mininetSwitchDict.keys()} for i in self.SliceDict.keys()}
-        #self.slice_BWaging_timestamp = {i:0 for i in self.SliceDict.keys()}
+        ###self.slice_BWaging_timestamp = {i:0 for i in self.SliceDict.keys()}
 
         self.slice_BWaging_period = 1
         if self.BWaging_ctrl == True:
@@ -510,15 +514,14 @@ class SimpleSwitch13(app_manager.RyuApp):
                 for i in self.SliceDict.keys():
                     for u in self.mininetSwitchDict.keys():
                         for v in self.mininetSwitchDict.keys():
-                            if (u == 1 and v == 2) or (u == 2 and v == 1):
-                                print(f'{i} {u},{v}', end="")
-                                print('%16d' % (self.slice_bandfree[i][u][v]), end="")
-                                print("\n")
+                            print(f'{i} {u},{v}', end="")
+                            print('%16d' % (self.slice_bandfree[i][u][v]), end="")
+                            print("\n")
             hub.sleep(self.sleep_period)
 
     #different switch to lowload slice
-
     def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):
+        #host to id
         if layerid == "ipv4":
             dsts = int(self.mininetHostDict[int(hostipv4_to_num(dst_host))])
         elif layerid == "mac":
@@ -535,7 +538,6 @@ class SimpleSwitch13(app_manager.RyuApp):
             return out_port
 
         if switchid in self.mininetSwitchDict.keys():
-            ###WARING
             #get value
             flow = self.slice_class_count[class_result][switchid].copy()
             latency = self.latency[switchid].copy()
@@ -752,9 +754,8 @@ class SimpleSwitch13(app_manager.RyuApp):
                 pass
 
         #preprocess
-        #open("mypcap.pcap", "wb").close()
+        ###open("mypcap.pcap", "wb").close()
         self.pcapfile.flush()
-        #self.pcap_writer = pcaplib.Writer(open("mypcap.pcap", "wb"), snaplen = 40)
         self.pcap_writer = pcaplib.Writer(open(self.pcapfile.name, "wb"), snaplen = 40)
         self.pcap_writer.write_pkt(ev.msg.data)
         X_test = ryu_preprocessing.transform_pcap(self.pcapfile.name)
@@ -795,7 +796,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             try:
                 self.slice_class_count[class_result][int(hostipv4_to_num(ipv4_src))][int(hostipv4_to_num(ipv4_dst))] += 1
             except:
-                #print("unknown L3")
+                ###print("unknown L3")
                 pass
 
         #avoid mistake for next time classifier
@@ -939,8 +940,8 @@ class SimpleSwitch13(app_manager.RyuApp):
         #flow table no switch addr
         src_port = self.outport_SrcsDsts[src_switch][dst_switch]
         dst_port = self.outport_SrcsDsts[dst_switch][src_switch]
-        #str(self.datapaths[dst_switch].ports[dst_port].hw_addr)
-        #str(self.datapaths[src_switch].ports[dst_port].hw_addr)
+        ###str(self.datapaths[dst_switch].ports[dst_port].hw_addr)
+        ###str(self.datapaths[src_switch].ports[dst_port].hw_addr)
         eth_src = num_to_switchmac(src_switch)
         eth_dst = num_to_switchmac(dst_switch)
         ip_src = int(netaddr.IPAddress("0.0.0.0"))
@@ -1090,7 +1091,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         #monitor record csv file
         csvtime = time.time()
         if dpid and csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
-            with open(self.csv_throughput_record_file, "a") as csv_file:
+            with open(self.csv_throughput_record_filepath, "a") as csv_throughput_record_file:
                 row = [csvtime]
 
                 for csvsrcid,toswitchdict in self.mininetSwitchDict.items():
@@ -1106,5 +1107,15 @@ class SimpleSwitch13(app_manager.RyuApp):
                         else:
                             row.append(0)
 
-                writer = csv.writer(csv_file)
+                writer = csv.writer(csv_throughput_record_file)
+                writer.writerow(row)
+
+        if csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
+            with open(self.csv_estBW_record_filepath, "a") as csv_estBW_record_file:
+                row = [csvtime]
+                for i in self.SliceDict.keys():
+                    for u in self.mininetSwitchDict.keys():
+                        for v in self.mininetSwitchDict.keys():
+                            row.append(self.slice_bandfree[i][u][v])
+                writer = csv.writer(csv_estBW_record_file)
                 writer.writerow(row)
