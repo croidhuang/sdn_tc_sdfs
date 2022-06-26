@@ -12,14 +12,14 @@ import networkx.algorithms.tree.mst as mst
 import networkx.algorithms.operators.binary as op
 import matplotlib.pyplot as plt
 
-def check_gogo_time(timestring,readpcap_time,immediate_start):    
+def check_gogo_time(timestring,immediate_start):    
     structtime = time.strptime(timestring, "%Y-%m-%d %H:%M:%S")
     timestamp = float(time.mktime(structtime))    
     if timestamp - immediate_start < 0:
+        timestamp = immediate_start
         print("GG: please config your start time ")
     else:
         print(f'GOGO_TIME: {timestring}')
-
     return timestamp
 
 """
@@ -27,22 +27,21 @@ time
 """
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
+SCHEDULER_TYPE = "MAX"  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-06-26 07:24:00" #custom
-readpcap_time = 1*60
+timestring = "2022-06-26 22:05:00" #custom
+READPCAP_TIME = 5
 other_time = 5
-immediate_start = time.time()+ readpcap_time + other_time
-timestamp = check_gogo_time(timestring,readpcap_time,immediate_start)
-GOGO_TIME = immediate_start #immediate_start, timestamp
+immediate_start = time.time()+ READPCAP_TIME + other_time
+GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
 #unit is second
-TOTAL_TIME = 30 #custom
+TOTAL_TIME = 4*60 #custom
 
 #unit is second, monitor period, controller get budget and scheduler distribute
 MONITOR_PERIOD = 1 #custom
@@ -445,12 +444,12 @@ elif EXP_TYPE == "scheduling":
 #gen graph
 if EXP_TYPE == "routing":
 
-    topo_h = 4
-    topo_n = 4
+    topo_h = 7
+    topo_n = 7
 
     #exp var ratio
     historytraffic_send_ratio = 0.5 #custom
-    historytraffic_scale = 0.5 #custom
+    historytraffic_scale = 0.8 #custom
     edge_bandwidth_scale = 0.8 #custom
     edge_min_connect = 2 #custom at least 1 connect
 
