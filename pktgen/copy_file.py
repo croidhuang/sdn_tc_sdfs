@@ -8,8 +8,13 @@ from exp_config.exp_config import topo_G,topo_GNode0_alignto_mininetSwitchNum
 from exp_utils.exp_utils import \
 G_to_M
 
+
 src_dir = "./"
+if not os.path.exists(src_dir):
+    os.makedirs(src_dir)
 dst_dir = "./cs/"
+if not os.path.exists(dst_dir):
+    os.makedirs(dst_dir)
 clinet_file = "client.py"
 server_file = "server.py"
 
