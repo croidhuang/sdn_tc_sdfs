@@ -12,14 +12,13 @@ import networkx.algorithms.tree.mst as mst
 import networkx.algorithms.operators.binary as op
 import matplotlib.pyplot as plt
 
-def check_gogo_time(timestring):
+def check_gogo_time(timestring,readpcap_time,immediate_start):    
     structtime = time.strptime(timestring, "%Y-%m-%d %H:%M:%S")
-    timestamp = float(time.mktime(structtime))
-    currtime = time.time()
-
-    if timestamp - currtime < 1 * 60:
+    timestamp = float(time.mktime(structtime))    
+    if timestamp - immediate_start < 0:
         print("GG: please config your start time ")
-    print(timestamp)
+    else:
+        print(f'GOGO_TIME: {timestring}')
 
     return timestamp
 
@@ -27,7 +26,7 @@ def check_gogo_time(timestring):
 time
 """
 
-ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
+ROUTING_TYPE = "algo" #bellman-ford, algo
 SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
@@ -35,12 +34,15 @@ EXP_TYPE = "routing" #"scheduling", "routing", "test"
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-06-20 18:57:00" #custom
-timestamp = check_gogo_time(timestring)
-GOGO_TIME = timestamp #0, timestamp
+timestring = "2022-06-26 07:24:00" #custom
+readpcap_time = 1*60
+other_time = 5
+immediate_start = time.time()+ readpcap_time + other_time
+timestamp = check_gogo_time(timestring,readpcap_time,immediate_start)
+GOGO_TIME = immediate_start #immediate_start, timestamp
 
 #unit is second
-TOTAL_TIME = 4 * 60 #custom
+TOTAL_TIME = 30 #custom
 
 #unit is second, monitor period, controller get budget and scheduler distribute
 MONITOR_PERIOD = 1 #custom
@@ -66,7 +68,7 @@ topo_GNode0_alignto_mininetSwitchNum = 1 #custom
 print_ctrl = 0
 
 
-
+#0stream #1voip #2chat #3browser #4email #5p2p #6file
 
 
 """
@@ -78,7 +80,7 @@ CSV_OUTPUTPATH = "./pktgen/timerecord/"
 
 
 PKT_FILE_LIST = {
-    #0chat #1email #2file #3stream #4p2p #5voip #6browser
+    #0chat #1email #2file #3stream #4p2p #5voip #6browser    
     0 : "./pktreplay/pcap/aim_chat_3a.pcap", #0chat
     1 : "./pktreplay/pcap/email1a.pcap", #1email
     2 : "./pktreplay/pcap/ftps_up_2a.pcap", #2file
@@ -125,6 +127,7 @@ orig_AVG_INNTER_ARRIVAL_TIME  = {
     5: 0.011784, 
     6: 0.058626, 
 }
+
 
 orig_MEDIAN_INNTER_ARRIVAL_TIME = {
     #median
@@ -205,7 +208,7 @@ def __interval_lowlimit(INNTER_ARRIVAL_TIME):
         normalize_x = float( (x[-1]-interval_lowlimit) / (x[-1]-x[0]) )
 
     for i in INNTER_ARRIVAL_TIME:
-        #min = x[1] = interval_lowlimit
+        ###min = x[1] = interval_lowlimit
         INNTER_ARRIVAL_TIME[i] = float( (INNTER_ARRIVAL_TIME[i]-x[0]) * normalize_x + interval_lowlimit )
 
     if print_ctrl == True:
@@ -214,11 +217,11 @@ def __interval_lowlimit(INNTER_ARRIVAL_TIME):
 
     return INNTER_ARRIVAL_TIME
 
-def __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
+def __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
     EST_SLICE_ONE_PKT = {}
     for i in iter_slice_dict:
-        c = float(MONITOR_PERIOD / INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]])
-        EST_SLICE_ONE_PKT[i] = int(1 * ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * c)
+        c = float(MONITOR_PERIOD / INNTER_ARRIVAL_TIME[i])
+        EST_SLICE_ONE_PKT[i] = int(1 * ONE_PKT_SIZE[i] * c)
     if print_ctrl == True:
         print(EST_SLICE_ONE_PKT)
     return EST_SLICE_ONE_PKT
@@ -232,10 +235,10 @@ def __EST_SLICE_AGING (TOTAL_TIME):
         print(EST_SLICE_AGING)
     return EST_SLICE_AGING
 
-def __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME):
+def __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME):
     NUM_PKT = {}
     for i in iter_slice_dict:
-        NUM_PKT[i] = int(TOTAL_TIME / INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]])
+        NUM_PKT[i] = int(TOTAL_TIME / INNTER_ARRIVAL_TIME[i])
     if print_ctrl == True:
         print(NUM_PKT)
     return NUM_PKT
@@ -243,7 +246,7 @@ def __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME):
 def __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME):
     MININET_BW = {}
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
-        #c = float(1/TOTAL_TIME)
+        ###c = float(1/TOTAL_TIME)
         c = 1        
         #mininet unit is MBbit, M = 2^20~1000000, 1Byte = 8bit
         MININET_BW[(v1, v2)] = float(EDGE_BANDWIDTH_G[v1][v2]['weight'] * c / (2**20) * 8)
@@ -321,14 +324,14 @@ if EXP_TYPE == "test":
     if interval_lowlimit_ctrl == True:
         INNTER_ARRIVAL_TIME = __interval_lowlimit(INNTER_ARRIVAL_TIME)
 
-    NUM_PKT = __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME)
+    NUM_PKT = __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME)
 
     """
     cal bandwidth
     """
 
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
-    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
     compatible routing
@@ -405,14 +408,14 @@ elif EXP_TYPE == "scheduling":
     if interval_lowlimit_ctrl == True:
         INNTER_ARRIVAL_TIME = __interval_lowlimit(INNTER_ARRIVAL_TIME)
 
-    NUM_PKT = __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME)
+    NUM_PKT = __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME)
 
     """
     cal bandwidth
     """
 
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
-    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     """
     compatible routing
@@ -442,12 +445,12 @@ elif EXP_TYPE == "scheduling":
 #gen graph
 if EXP_TYPE == "routing":
 
-    topo_h = 7
-    topo_n = 7
+    topo_h = 4
+    topo_n = 4
 
     #exp var ratio
-    historytraffic_send_ratio = 0.8 #custom
-    historytraffic_scale = 0.8 #custom
+    historytraffic_send_ratio = 0.5 #custom
+    historytraffic_scale = 0.5 #custom
     edge_bandwidth_scale = 0.8 #custom
     edge_min_connect = 2 #custom at least 1 connect
 
@@ -464,7 +467,10 @@ if EXP_TYPE == "routing":
         choice_node_list = [v for v in choice_node_list if v != u]
         fixed_connect_v_list = random.sample(choice_node_list, 1)       
         choice_node_list = [v for v in choice_node_list if v not in fixed_connect_v_list]
-        other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
+        try:
+            other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
+        except:
+            other_connect_v_range = 1
         other_connect_v_list = random.sample(set(choice_node_list), other_connect_v_range)
 
         # random add edge u>v only (u, v) no (v, u)
@@ -503,13 +509,13 @@ if EXP_TYPE == "routing":
     ####################check####################
     SLICE_TRAFFIC_MAP = {
         #0chat #1email #2file #3stream #4p2p #5voip #6browser
-        0: 0, #0chat
-        1: 1, #1email
-        2: 2, #2file
-        3: 3, #3stream
-        4: 4, #4p2p
-        5: 5, #5voip
-        6: 6, #6browser
+        0: 3, #3stream
+        1: 5, #5voip
+        2: 0, #0chat
+        3: 6, #6browser
+        4: 1, #1email
+        5: 2, #2file
+        6: 4, #4p2p
     }
     ####################check####################
 
@@ -529,7 +535,7 @@ if EXP_TYPE == "routing":
     if interval_lowlimit_ctrl == True:
         INNTER_ARRIVAL_TIME = __interval_lowlimit(INNTER_ARRIVAL_TIME)
 
-    NUM_PKT = __NUM_PKT (TOTAL_TIME, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME)
+    NUM_PKT = __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME)
 
     """
     traffic generate
@@ -551,6 +557,7 @@ if EXP_TYPE == "routing":
 
     #gen and sum traffic
     sum_HISTORYTRAFFIC = 0
+    cnt_HISTORYTRAFFIC = 0
     for i, i_dict in HISTORYTRAFFIC.items():
 
         pair_list=[]
@@ -568,14 +575,16 @@ if EXP_TYPE == "routing":
             v1=p[0]
             v2=p[1]
             HISTORYTRAFFIC[i][(v1, v2)] = int(\
-                ONE_PKT_SIZE[SLICE_TRAFFIC_MAP[i]] * \
-                float(1/INNTER_ARRIVAL_TIME[SLICE_TRAFFIC_MAP[i]]) * \
+                ONE_PKT_SIZE[i] * \
+                float(1/INNTER_ARRIVAL_TIME[i]) * \
                 scaledict[p])
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+            cnt_HISTORYTRAFFIC += 1
 
     if print_ctrl == True:
         pprint.pprint(HISTORYTRAFFIC)
         print(sum_HISTORYTRAFFIC)
+        print(cnt_HISTORYTRAFFIC)
 
     """
     cal bandwidth
@@ -590,6 +599,11 @@ if EXP_TYPE == "routing":
     else:
         print(f"{sum_HISTORYTRAFFIC/(2**20)}<{mininet_cpu_py}")
 
+    python_multiprocess = 8*4
+    if int(cnt_HISTORYTRAFFIC) > python_multiprocess:
+        print(f"{cnt_HISTORYTRAFFIC}>{python_multiprocess}")
+    else:
+        print(f"{cnt_HISTORYTRAFFIC}<{python_multiprocess}")
 
 
     EDGE_BANDWIDTH_G = topo_G.copy()
@@ -619,6 +633,6 @@ if EXP_TYPE == "routing":
 
     #aging
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
-    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, SLICE_TRAFFIC_MAP, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
