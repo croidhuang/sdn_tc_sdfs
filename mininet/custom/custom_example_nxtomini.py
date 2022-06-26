@@ -16,8 +16,9 @@ import pprint
 import time
 
 from multiprocessing import Process
-from subprocess import Popen
+from subprocess import Popen,STDOUT,PIPE
 
+import os
 import sys
 sys.path.insert(1, "./")
 from exp_config.exp_config import \
@@ -45,7 +46,7 @@ def topo_G_to_topo_mininet(topo_G):
 
     for s in topo_G.nodes():
         topo_mininet.nodes[G_to_M(s)]['host'] = [G_to_M(h) for h in topo_G.nodes[s]['host']]
-    
+
     return topo_mininet
 
 def MININET_BW_to_bw_mininet(MININET_BW):
@@ -72,7 +73,7 @@ def getdictHostConnections ( nodes ):
     for node in nodes:
         nodenum=str(node).lstrip("h")
         nDict[nodenum] = getConnections( node )
-    
+
     return nDict
 
 def getdictSwitchConnections ( nodes ):
@@ -96,7 +97,7 @@ def getdictSwitchConnections ( nodes ):
     for node in nodes:
         nodenum = str(node).lstrip("s")
         nDict[nodenum] = getConnections( node )
-    
+
     return nDict
 
 
@@ -106,15 +107,15 @@ def myNetwork():
 
     topo_mininet = topo_G_to_topo_mininet(topo_G)
     bw_mininet = MININET_BW_to_bw_mininet(MININET_BW)
-    
+
     net = Mininet(
         topo = None,
         autoSetMacs = True,
         autoStaticArp = True,
         build = False)
 
-    info("\n*** Add controller\n")        
-    net.addController("c0", controller = RemoteController, ip = "127.0.0.1", port = 6633)  
+    info("\n*** Add controller\n")
+    net.addController("c0", controller = RemoteController, ip = "127.0.0.1", port = 6633)
 
     info("\n*** Add switches\n")
     SwitchDict = {}
@@ -148,7 +149,7 @@ def myNetwork():
         SwitchDict[i] = net.get(SwitchNum[i])
 
     for i in HostDict:
-        HostDict[i] = net.get(HostNum[i])    
+        HostDict[i] = net.get(HostNum[i])
 
 
 
@@ -165,17 +166,18 @@ def myNetwork():
     mininetSwitchPortDict = getdictSwitchConnections(net.switches)
     json.dump(mininetSwitchPortDict, open("mininetSwitchPortDict.txt","w"))
     #pprint.pprint(mininetSwitchPortDict)
-    
+
 
     info("\n*** Dump-flows\n")
     for i in SwitchDict:
         SwitchDict[i].cmdPrint("ovs-ofctl dump-flows s"+str(i))
 
     info("\n*** Start Ryu Controller\n")
+    Popen(["python3","-u",'copy_file.py'],cwd='pktgen')
     Popen(["xterm","-e", "ryu-manager ./ryu/ryu/app/simple_switch_13_nx.py"])
     #wait Ryu start
     time.sleep(10)
-    
+
 
     """
     ###WARNING  must start controller
@@ -184,7 +186,7 @@ def myNetwork():
     net.pingAll()
 
     ###WARNING  must start controller
-    info( "\n***Testing bandwidth\n" )            
+    info( "\n***Testing bandwidth\n" )
     for i,ih in HostDict.items():
         for j,jh in HostDict.items():
             if i != j:
@@ -200,7 +202,7 @@ def myNetwork():
                 HostDict_i.cmdPrint("python3 pktreplay/cs/server"+str(i)+".py")
         elif EXP_TYPE == "routing" or "test":
             HostDict_i.cmdPrint("python3 pktgen/cs/client"+str(i)+".py")
-          
+
 
     ClientDict={}
     for i in HostDict:
@@ -210,7 +212,7 @@ def myNetwork():
     for i in HostDict:
         ClientDict[i].join()
 
-    
+
 
 
 
