@@ -66,7 +66,8 @@ sys.path.insert(1, "./")
 from exp_config.exp_config import \
 ROUTING_TYPE, SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
 GOGO_TIME, TOTAL_TIME, MONITOR_PERIOD,     \
-EST_SLICE_ONE_PKT , EST_SLICE_AGING, \
+EST_SLICE_ONE_PKT , EST_SLICE_AGING,    \
+SLICE_TRAFFIC_MAP,     \
 topo_G,     \
 topo_SLICENDICT, topo_GNode0_alignto_mininetSwitchNum,     \
 HISTORYTRAFFIC, EDGE_BANDWIDTH_G
@@ -230,7 +231,8 @@ class SimpleSwitch13(app_manager.RyuApp):
             14: 3,
             15: 5,
             16: 3,
-        }
+        }        
+
         self.service_to_string = {
             "unknown": "Unknown",  # no L3 or L4 or error###
             0: "0 Chat",  # 0AIM, 6ICQ
@@ -241,6 +243,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             5: "5 VoIP",  # 5Hangouts, 10Skype, 11Spotify, 15Voipbuster
             6: "6 Browser",  # 2Facebook, 13 Tor
         }
+
         """
         0 AIM        :0 Chat
         1 Email      :1 Email
@@ -260,6 +263,15 @@ class SimpleSwitch13(app_manager.RyuApp):
         15 Voipbuster:5 VoIP
         16 YouTube   :3 Streaming
         """
+
+        #mapping SLICE_TRAFFIC_MAP
+        for k,v in self.app_to_service.items():
+            self.app_to_service[k] = SLICE_TRAFFIC_MAP[v]
+        
+        temp_service_to_string=self.service_to_string.copy()
+        for k in self.service_to_string.keys():
+            if k != "unknown":
+                self.service_to_string[k] = temp_service_to_string[SLICE_TRAFFIC_MAP[k]]
 
         #monitor
         self.sleep_period = MONITOR_PERIOD
