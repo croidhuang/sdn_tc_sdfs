@@ -107,10 +107,10 @@ def num_to_switchmac(switch_num):
     return switch_mac_addr
 
 def clienttraffictype_to_L4port(traffictype,client):
-    L4port=traffictype*10000+client*1000
+    L4port=traffictype*1000+client*100
     return L4port
 
 def L4port_to_clienttraffictype(L4port):
-    L4port=str(L4port).zfill(5)
+    L4port=str(L4port).zfill(4)
     traffictype=L4port[0]
     return traffictype
