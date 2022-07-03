@@ -26,15 +26,15 @@ def check_gogo_time(timestring,immediate_start):
 time
 """
 
-ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = "MAX"  #False, "random", "MAX", "min", "algo"
+ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
+SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-06-26 22:05:00" #custom
+timestring = "2022-07-03 20:26:00" #custom
 READPCAP_TIME = 5
 other_time = 5
 immediate_start = time.time()+ READPCAP_TIME + other_time
@@ -242,7 +242,7 @@ def __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME):
         print(NUM_PKT)
     return NUM_PKT
 
-def __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME):
+def __MININET_BW (EDGE_BANDWIDTH_G):
     MININET_BW = {}
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
         ###c = float(1/TOTAL_TIME)
@@ -348,7 +348,7 @@ if EXP_TYPE == "test":
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
     
-    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
+    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
 
 
 
@@ -436,7 +436,7 @@ elif EXP_TYPE == "scheduling":
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
             print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
 
-    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
+    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
 
 
 
@@ -619,7 +619,7 @@ if EXP_TYPE == "routing":
         traffic_cnt.append(0)
     scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale)
     #gen
-    avg_b = sum_HISTORYTRAFFIC / edge_num
+    avg_b = sum_HISTORYTRAFFIC / edge_num / TOTAL_TIME
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
         e = (v1, v2)
         EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaledict[e])
@@ -629,9 +629,8 @@ if EXP_TYPE == "routing":
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
             print(f"({v1},{v2}):{EDGE_BANDWIDTH_G[v1][v2]['weight']}")
 
-
     #aging
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
 
-    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G, TOTAL_TIME)
+    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
