@@ -177,13 +177,13 @@ choice_split = 3
 choice_train = 2
 
 #控制要不要執行時候印
-show_ctrl = 0
+show_ctrl = False
 #要不要標題，不然存一堆會不知道誰是誰
-title_ctrl = 1
+title_ctrl = True
 #要不要計算跟存混淆矩陣
-cal_confusion_matrix = 1
+cal_confusion_matrix = True
 #要不要計算跟存決策樹(要是樹的才能產生)
-cal_tree_structure = 0
+cal_tree_structure = False
 
 #換分類改這個
 # 1clf
@@ -193,7 +193,7 @@ cal_tree_structure = 0
 # 5clfe
 # 6lightgbm
 # 9valid
-choice_classfier = 1
+choice_classfier = 2
 
 
 
@@ -555,16 +555,16 @@ def print_result(test_y_test, y_test_predicted, classifier):
     #colormaps cmap=
     #https://matplotlib.org/stable/tutorials/colors/colormaps.html
     #confusion_matrix    
-    if cal_confusion_matrix == 1:
+    if cal_confusion_matrix == True:
         print(confusion_matrix(test_y_test, y_test_predicted, labels=labelslist))
         cm_report = confusion_matrix(test_y_test, y_test_predicted, labels=labelslist, normalize=None)
         sns.set(font_scale=0.35)
         sns.heatmap(pd.DataFrame(cm_report).iloc[:, :].T, annot = True, fmt=".4g", cmap = "Blues")        
         svgoutput_path = os.path.join(outputpath+'/'+dir_name+'/'+ svg_title+'.'+'confusion_matrix'+'.'+classifier +'.svg')
-        if title_ctrl == 1:
+        if title_ctrl == True:
             plt.title(result_title)
         plt.savefig(svgoutput_path, format='svg')
-        if show_ctrl == 1:
+        if show_ctrl  == True:
             plt.show()
         plt.clf()
     
@@ -589,10 +589,10 @@ def print_result(test_y_test, y_test_predicted, classifier):
     sns.heatmap(mask1, annot=True, fmt=".4g", cmap="Blues")
     svgoutput_path = os.path.join(outputpath+'/'+dir_name+'/' + svg_title+'.'+'classification_report'+'.'+'.'+classifier + '.svg')
 
-    if title_ctrl == 1:
+    if title_ctrl == True:
         plt.title(result_title)
     plt.savefig(svgoutput_path, format='svg')
-    if show_ctrl == 1:
+    if show_ctrl  == True:
         plt.show()
     plt.clf()
 
@@ -616,7 +616,7 @@ def save_models(clf, classifier):
 
 def print_tree(clf, classifier):
 
-    if cal_tree_structure == 1:   
+    if cal_tree_structure == True:   
         """
         sklearn example Tree structure
         """
@@ -757,4 +757,11 @@ def main():
     print('\n', '================ We Can Only See A Short Distance Ahead. ================', '\n')  
 
 if __name__ == '__main__':
-    main()
+    choice_dataset = 'ipandport' 
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(3):
+        main()
+    choice_dataset = 'headerfield' 
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(3):
+        main()
