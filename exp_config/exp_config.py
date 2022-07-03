@@ -26,15 +26,15 @@ def check_gogo_time(timestring,immediate_start):
 time
 """
 
-ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
-SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
+ROUTING_TYPE = "algo" #bellman-ford, algo
+SCHEDULER_TYPE = "MAX"  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-07-03 20:26:00" #custom
+timestring = "2022-07-03 22:50:00" #custom
 READPCAP_TIME = 5
 other_time = 5
 immediate_start = time.time()+ READPCAP_TIME + other_time
@@ -558,7 +558,6 @@ if EXP_TYPE == "routing":
     sum_HISTORYTRAFFIC = 0
     cnt_HISTORYTRAFFIC = 0
     for i, i_dict in HISTORYTRAFFIC.items():
-
         pair_list=[]
         traffic_cnt=[]
         #shffle list
@@ -588,8 +587,7 @@ if EXP_TYPE == "routing":
     """
     cal bandwidth
     """
-
-    sum_HISTORYTRAFFIC = sum_HISTORYTRAFFIC
+    
     #cfs     50%     4.10e+10
     mininet_cpu_py = (4.10e+10)
     mininet_cpu_py = mininet_cpu_py/8/(2**20)
@@ -619,7 +617,7 @@ if EXP_TYPE == "routing":
         traffic_cnt.append(0)
     scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale)
     #gen
-    avg_b = sum_HISTORYTRAFFIC / edge_num / TOTAL_TIME
+    avg_b = sum_HISTORYTRAFFIC / edge_num
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
         e = (v1, v2)
         EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaledict[e])
