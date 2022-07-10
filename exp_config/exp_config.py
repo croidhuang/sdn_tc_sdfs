@@ -26,15 +26,15 @@ def check_gogo_time(timestring,immediate_start):
 time
 """
 
-ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = "MAX"  #False, "random", "MAX", "min", "algo"
+ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
+SCHEDULER_TYPE = False #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "routing" #"scheduling", "routing", "test"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-07-03 22:50:00" #custom
+timestring = "2022-07-10 21:45:00" #custom
 READPCAP_TIME = 5
 other_time = 5
 immediate_start = time.time()+ READPCAP_TIME + other_time
@@ -140,6 +140,17 @@ orig_MEDIAN_INNTER_ARRIVAL_TIME = {
     6: 0.000008, 
 }
 
+test_AVG_INNTER_ARRIVAL_TIME  = {
+    #avg alltime/allcount
+    0: 0.514901, 
+    1: 0.514901,
+    2: 0.514901,
+    3: 0.514901,
+    4: 0.514901,
+    5: 0.514901,
+    6: 0.514901,
+}
+
 orig_ONE_PKT_SIZE = {
     #median
     #0chat #1email #2file #3stream #4p2p #5voip #6browser
@@ -162,6 +173,19 @@ orig_AVG_ONE_PKT_SIZE = {
     4: 903, 
     5: 169, 
     6: 1153, 
+}
+
+
+test_AVG_ONE_PKT_SIZE = {
+    #cal = avg allbyte/alltime * alltime/allcount
+    #0chat #1email #2file #3stream #4p2p #5voip #6browser
+    0: 321, 
+    1: 321, 
+    2: 321, 
+    3: 321, 
+    4: 321, 
+    5: 321, 
+    6: 321, 
 }
 
 orig_MEDIAN_ONE_PKT_SIZE = {
@@ -225,6 +249,16 @@ def __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE):
         print(EST_SLICE_ONE_PKT)
     return EST_SLICE_ONE_PKT
 
+def __EST_SLICE_RATIO (MONITOR_PERIOD, EST_SLICE_ONE_PKT):
+    EST_SLICE_RATIO = {}
+    sum = 0
+    for i in iter_slice_dict:
+        sum += EST_SLICE_ONE_PKT[i]
+    for i in iter_slice_dict:
+        EST_SLICE_RATIO[i] = EST_SLICE_ONE_PKT[i] / sum
+    if print_ctrl == True:
+        print(EST_SLICE_RATIO)
+    return EST_SLICE_RATIO
 
 def __EST_SLICE_AGING (TOTAL_TIME):
     EST_SLICE_AGING = {}
@@ -579,10 +613,10 @@ if EXP_TYPE == "routing":
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
 
-    if print_ctrl == True:
-        pprint.pprint(HISTORYTRAFFIC)
-        print(sum_HISTORYTRAFFIC)
-        print(cnt_HISTORYTRAFFIC)
+    #if print_ctrl == True:
+    pprint.pprint(HISTORYTRAFFIC)
+    print(sum_HISTORYTRAFFIC)
+    print(cnt_HISTORYTRAFFIC)
 
     """
     cal bandwidth
@@ -630,5 +664,6 @@ if EXP_TYPE == "routing":
     #aging
     EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
     EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_RATIO =  __EST_SLICE_RATIO (MONITOR_PERIOD, EST_SLICE_ONE_PKT)
 
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
