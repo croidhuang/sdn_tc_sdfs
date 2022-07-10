@@ -18,7 +18,7 @@ sys.path.insert(1,"./")
 from exp_config.exp_config import \
 SLICE_TRAFFIC_MAP, NUM_PKT,     \
 SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
-GOGO_TIME, TOTAL_TIME, FIRST_TIME_SLEEP,     \
+GOGO_TIME, TOTAL_TIME, FIRST_TIME_SLEEP, READPCAP_TIME,     \
 ONE_PKT_SIZE, INNTER_ARRIVAL_TIME,     \
 topo_G,     \
 topo_SLICENDICT,     \
@@ -50,8 +50,17 @@ def host_traffic_gen(hostid):
         payload="".join(random.choice(chars) for i in range(length))
         return payload
 
+    hostlist=[]
+    for s in topo_G.nodes():
+        try:
+            if topo_G.nodes[s]['host'] != []:
+                for h in topo_G.nodes[s]['host']:
+                    hostlist.append(h)
+        except:
+            pass
+    
     isd_dict={i:{(G_to_M(s),G_to_M(d)):[] \
-              for d in topo_G.nodes() for s in topo_G.nodes()}\
+              for d in hostlist for s in hostlist}\
               for i in topo_SLICENDICT.keys()}
 
     for i,slicedict in HISTORYTRAFFIC.items():
@@ -65,13 +74,13 @@ def host_traffic_gen(hostid):
             if srcid == hostid:
                 gen_ctrl = True
                 length=int(ONE_PKT_SIZE[i])
-                L4sport=int(clienttraffictype_to_L4port(SLICE_TRAFFIC_MAP[i],hostid))+int(srcid)*10+int(dstid)
+                L4sport=int(clienttraffictype_to_L4port(i,hostid))+int(srcid)*10+int(dstid)
                 while length > 0 :
                     pkt = Ether(src=num_to_hostmac(srcid), dst=num_to_hostmac(dstid))/   \
                           IP(src=num_to_hostipv4(srcid), dst=num_to_hostipv4(dstid))/    \
                           UDP(sport=L4sport,dport=L4sport)
-                    if length > 1500:
-                        payload = 1500                        
+                    if length > (1500-len(pkt)):
+                        payload = (1500-len(pkt))
                     else:
                         payload = length
                     length = length - 1500    
@@ -91,14 +100,11 @@ flow = host_traffic_gen(hostid)
 
 
 def send_flow(i,srcid,dstid):
-    timestamp=time.time()
+    ###timestamp=time.time()
     myinterface="h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface=myinterface)
-    if INNTER_ARRIVAL_TIME[i] > 0.01:
-        sendp(flow[i][(srcid,dstid)],inter=INNTER_ARRIVAL_TIME[i],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)
-    else:
-        sendp(flow[i][(srcid,dstid)],inter=INNTER_ARRIVAL_TIME[i],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)
-    print(f"client {str(srcid)}-{str(dstid)} type{i}:done \t{(timestamp-GOGO_TIME):.6f}\t{(time.time()-timestamp):.6f} s")
+    sendp(flow[i][(srcid,dstid)],inter=INNTER_ARRIVAL_TIME[i],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)
+    ###print(f"client {str(srcid)}-{str(dstid)} type{i}:done \t{(timestamp-GOGO_TIME):.6f}\t{(time.time()-timestamp):.6f} s")
 
     """
     ###sendp(flow[i][(srcid,dstid)],count=10,iface=myinterface,verbose=False,socket=myL2socket)
@@ -124,7 +130,7 @@ def cnt_flow():
                 srcid=e[0]
                 dstid=e[1]
                 if len(v) != 0:
-                    print(f"client {str(srcid)}-{str(dstid)} type{i} \t{(time.time()-GOGO_TIME):.6f}\t async")
+                    ###print(f"client {str(srcid)}-{str(dstid)} type{i} \t{(time.time()-GOGO_TIME):.6f}\t async")
                     processlist.append(pool.apply_async(send_flow,(i,srcid,dstid)))
         pool.close()
         pool.join()
@@ -161,10 +167,10 @@ def pre_main():
 if __name__ == "__main__":
     if GOGO_TIME:
         pre_main()
-        time.sleep(GOGO_TIME-float(time.time())-60)
+        time.sleep(GOGO_TIME-float(time.time())-READPCAP_TIME)
     else:
         pre_main()
-        time.sleep(60)
+        time.sleep(READPCAP_TIME)
     while (timestamp := float(time.time())) < GOGO_TIME:
         pass
     main()
