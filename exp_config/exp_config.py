@@ -606,7 +606,7 @@ if EXP_TYPE == "routing":
         # ensure connect
         choice_node_list = list(nodelist.copy())
         choice_node_list = [v for v in choice_node_list if v != u]
-        fixed_connect_v_list = random.sample(choice_node_list, 1)[0]
+        fixed_connect_v_list = random.sample(choice_node_list, 1)
         choice_node_list = [v for v in choice_node_list if v not in fixed_connect_v_list]
         try:
             other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
@@ -616,7 +616,7 @@ if EXP_TYPE == "routing":
 
         # random add edge u>v only (u, v) no (v, u)
         for v in nodelist:
-            if  v == fixed_connect_v_list:
+            if  v in fixed_connect_v_list:
                 if u<v:
                     edgedict[(u, v)]+=1
                 elif v<u:
