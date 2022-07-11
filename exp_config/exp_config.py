@@ -333,7 +333,6 @@ if EXP_TYPE == "fake":
         choice_node_list = list(nodelist.copy())
         choice_node_list = [v for v in choice_node_list if v != u]
         fixed_connect_v_list = (u+1)%topo_n
-        print(f'{u}{fixed_connect_v_list}')
         # random add edge u>v only (u, v) no (v, u)
         for v in nodelist:
             if  v == fixed_connect_v_list:
