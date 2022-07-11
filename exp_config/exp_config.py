@@ -26,15 +26,15 @@ def check_gogo_time(timestring,immediate_start):
 time
 """
 
-ROUTING_TYPE = "bellman-ford" #bellman-ford, algo
-SCHEDULER_TYPE = False #False, "random", "MAX", "min", "algo"
-EXP_TYPE = "routing" #"scheduling", "routing", "test"
+ROUTING_TYPE = "algo" #bellman-ford, algo
+SCHEDULER_TYPE = "MAX" #False, "random", "MAX", "min", "algo"
+EXP_TYPE = "fake" #"scheduling", "routing", "fake"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-07-10 21:45:00" #custom
+timestring = "2022-07-11 19:48:00" #custom
 READPCAP_TIME = 5
 other_time = 5
 immediate_start = time.time()+ READPCAP_TIME + other_time
@@ -310,19 +310,53 @@ def __gen_scaledict(pair_list, traffic_cnt, lowestscale):
 
 #custom
 #gen graph
-if EXP_TYPE == "test":
-    topo_SLICENDICT = {}
-    topo_SLICENDICT = {0:0}
-    topo_h = 2
-    topo_n = 2
+if EXP_TYPE == "fake":
+
+    topo_h = 8
+    topo_n = 8
+
+    #exp var ratio
+    historytraffic_send_ratio = 1 #custom
+    historytraffic_scale = 1 #custom
+    edge_bandwidth_scale = 1 #custom
+    edge_min_connect = 1 #custom at least 1 connect
+
     topo_G = nx.Graph()
     hostlist = [i for i in range(topo_h)]
     nodelist = [i for i in range(topo_n)]
-    edgelist = [(0, 1)]
+
+    #random edgelist
+    edgedict = {(u, v):0 for u in nodelist for v in nodelist}
+    edgecntdict={u:0 for u in nodelist}
+    for u in nodelist:
+        # ensure connect
+        choice_node_list = list(nodelist.copy())
+        choice_node_list = [v for v in choice_node_list if v != u]
+        fixed_connect_v_list = (u+1)%topo_n
+        print(f'{u}{fixed_connect_v_list}')
+        # random add edge u>v only (u, v) no (v, u)
+        for v in nodelist:
+            if  v == fixed_connect_v_list:
+                if u<v:
+                    edgedict[(u, v)]+=1
+                elif v<u:
+                    edgedict[(v, u)]+=1
+    edgelist=[k for k, v in edgedict.items() if v!=0]
+    edge_num = len(edgelist)    
+
+
+
     topo_G.add_nodes_from(nodelist)
     topo_G.add_edges_from(edgelist)
-    topo_G.nodes[0]['host'] = [hostlist[0]]
-    topo_G.nodes[1]['host'] = [hostlist[1]]
+
+    #networkx no host, so add host label
+    for s in topo_G.nodes():
+        topo_G.nodes[s]['host'] = []
+    for h in hostlist:
+        try:
+            topo_G.nodes[h]['host'].append(hostlist[h])
+        except:
+            print("gg: host > switch")
 
     #hop so weight is 1
     for u, v in topo_G.edges():
@@ -331,22 +365,22 @@ if EXP_TYPE == "test":
     ####################check####################
     SLICE_TRAFFIC_MAP = {
         #0chat #1email #2file #3stream #4p2p #5voip #6browser
-        0: 0, #0chat
-        1: 0, #0chat
+        0: 3, #3stream
+        1: 5, #5voip
         2: 0, #0chat
-        3: 0, #0chat
-        4: 0, #0chat
-        5: 0, #0chat
-        6: 0, #0chat
+        3: 6, #6browser
+        4: 1, #1email
+        5: 2, #2file
+        6: 4, #4p2p
     }
     ####################check####################
 
     #MUST CHECK you want avg or median
-    INNTER_ARRIVAL_TIME = {i: 0.001 for i in iter_slice_dict}
+    INNTER_ARRIVAL_TIME = __INNTER_ARRIVAL_TIME(orig_AVG_INNTER_ARRIVAL_TIME, SLICE_TRAFFIC_MAP)
     #MUST CHECK you want avg or median
 
     #MUST CHECK you want avg or median
-    ONE_PKT_SIZE = {i: 8888 for i in iter_slice_dict}
+    ONE_PKT_SIZE = __ONE_PKT_SIZE(orig_AVG_ONE_PKT_SIZE, SLICE_TRAFFIC_MAP)
     #MUST CHECK you want avg or median
 
     """
@@ -360,28 +394,103 @@ if EXP_TYPE == "test":
     NUM_PKT = __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME)
 
     """
-    cal bandwidth
-    """
-
-    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
-    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
-
-    """
-    compatible routing
+    traffic generate
     """
 
     HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
-    for i in topo_SLICENDICT.keys():
-        HISTORYTRAFFIC[i][(0, 1)] = EST_SLICE_AGING[i]
+
+    #directed, not edge, host to host
+    for i, i_dict in HISTORYTRAFFIC.items():
+        for v1 in topo_G.nodes():
+            for v2 in topo_G.nodes():
+                if v1 != v2:
+                    #0.5 is only one direction
+                    if v1 < v2 :
+                        try:
+                            if bool(HISTORYTRAFFIC[i][(v2,v1)]) == True:
+                                pass
+                        except:
+                            HISTORYTRAFFIC[i][(v1, v2)] = 0
+
+
+    #gen and sum traffic
+    sum_HISTORYTRAFFIC = 0
+    cnt_HISTORYTRAFFIC = 0
+    for i, i_dict in HISTORYTRAFFIC.items():
+        pair_list=[]
+        traffic_cnt=[]
+        #shffle list
+        for e in i_dict.keys():            
+            if random.random() > historytraffic_send_ratio:
+                continue
+            else:
+                pair_list.append(e)
+                traffic_cnt.append(0)
+            scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale)
+        #gen
+        for p in pair_list:
+            v1=p[0]
+            v2=p[1]
+            HISTORYTRAFFIC[i][(v1, v2)] = int(\
+                ONE_PKT_SIZE[i] * \
+                float(1/INNTER_ARRIVAL_TIME[i]) * \
+                scaledict[p])
+            sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+            cnt_HISTORYTRAFFIC += 1
+
+    if print_ctrl == True:
+        pprint.pprint(HISTORYTRAFFIC)
+        print(sum_HISTORYTRAFFIC)
+        print(cnt_HISTORYTRAFFIC)
+
+    """
+    cal bandwidth
+    """
+    
+    #cfs     50%     4.10e+10
+    mininet_cpu_py = (4.10e+10)
+    mininet_cpu_py = mininet_cpu_py/8/(2**20)
+    if int(sum_HISTORYTRAFFIC/(2**20)) > mininet_cpu_py:
+        print(f"{sum_HISTORYTRAFFIC/(2**20)}>{mininet_cpu_py}")
+    else:
+        print(f"{sum_HISTORYTRAFFIC/(2**20)}<{mininet_cpu_py}")
+
+    python_multiprocess = 8*4
+    if int(cnt_HISTORYTRAFFIC) > python_multiprocess:
+        print(f"{cnt_HISTORYTRAFFIC}>{python_multiprocess}")
+    else:
+        print(f"{cnt_HISTORYTRAFFIC}<{python_multiprocess}")
+
 
     EDGE_BANDWIDTH_G = topo_G.copy()
-    EDGE_BANDWIDTH_G[0][1]['weight'] = EST_SLICE_AGING[0]
-    EDGE_BANDWIDTH_G[1][0]['weight'] = EDGE_BANDWIDTH_G[0][1]['weight']
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():
+        EDGE_BANDWIDTH_G[v1][v2]['weight'] = 0
+        EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']
+
+    #shuffle bandwidth
+    pair_list=[]
+    traffic_cnt=[]
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():
+        e = (v1, v2)
+        pair_list.append(e)
+        traffic_cnt.append(0)
+    scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale)
+    #gen
+    avg_b = sum_HISTORYTRAFFIC / edge_num
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():
+        e = (v1, v2)
+        EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaledict[e])
+        EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']
 
     if print_ctrl == True:
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
-            print(EDGE_BANDWIDTH_G[v1][v2]['weight'])
-    
+            print(f"({v1},{v2}):{EDGE_BANDWIDTH_G[v1][v2]['weight']}")
+
+    #aging
+    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
+    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+    EST_SLICE_RATIO =  __EST_SLICE_RATIO (MONITOR_PERIOD, EST_SLICE_ONE_PKT)
+
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
 
 
@@ -498,7 +607,7 @@ if EXP_TYPE == "routing":
         # ensure connect
         choice_node_list = list(nodelist.copy())
         choice_node_list = [v for v in choice_node_list if v != u]
-        fixed_connect_v_list = random.sample(choice_node_list, 1)       
+        fixed_connect_v_list = random.sample(choice_node_list, 1)[0]
         choice_node_list = [v for v in choice_node_list if v not in fixed_connect_v_list]
         try:
             other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
@@ -582,10 +691,18 @@ if EXP_TYPE == "routing":
             for v2 in topo_G.nodes():
                 if v1 != v2:
                     #0.5 is only one direction
-                    if random.random() > 0.5:
-                        HISTORYTRAFFIC[i][(v1, v2)] = 0
+                    if random.random() > 0.5 :
+                        try:
+                            if bool(HISTORYTRAFFIC[i][(v2,v1)]) == True:
+                                pass
+                        except:
+                            HISTORYTRAFFIC[i][(v1, v2)] = 0
                     else:
-                        HISTORYTRAFFIC[i][(v2, v1)] = 0
+                        try:
+                            if bool(HISTORYTRAFFIC[i][(v1,v2)]) == True:
+                                pass
+                        except:
+                            HISTORYTRAFFIC[i][(v2, v1)] = 0
 
 
     #gen and sum traffic
@@ -613,10 +730,10 @@ if EXP_TYPE == "routing":
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
 
-    #if print_ctrl == True:
-    pprint.pprint(HISTORYTRAFFIC)
-    print(sum_HISTORYTRAFFIC)
-    print(cnt_HISTORYTRAFFIC)
+    if print_ctrl == True:
+        pprint.pprint(HISTORYTRAFFIC)
+        print(sum_HISTORYTRAFFIC)
+        print(cnt_HISTORYTRAFFIC)
 
     """
     cal bandwidth
