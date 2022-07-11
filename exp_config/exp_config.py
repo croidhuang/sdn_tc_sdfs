@@ -28,7 +28,7 @@ time
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
 SCHEDULER_TYPE = "MAX" #False, "random", "MAX", "min", "algo"
-EXP_TYPE = "fake" #"scheduling", "routing", "fake"
+EXP_TYPE = "routing" #"scheduling", "routing", "fake"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
