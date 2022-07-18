@@ -22,7 +22,7 @@ GOGO_TIME, TOTAL_TIME, FIRST_TIME_SLEEP, READPCAP_TIME,     \
 ONE_PKT_SIZE, INNTER_ARRIVAL_TIME,     \
 topo_G,     \
 topo_SLICENDICT,     \
-HISTORYTRAFFIC
+HISTORYTRAFFIC,EXTRATRAFFIC
 
 from exp_utils.exp_utils import \
 G_to_M, num_to_hostmac,num_to_hostipv4,clienttraffictype_to_L4port
@@ -37,6 +37,7 @@ hostid = int(hostid[start:end])
 
 random.seed(RANDOM_SEED_NUM)
 runcnt = 0
+
 
 class Counter(dict):
     def __missing__(key):
@@ -58,7 +59,7 @@ def host_traffic_gen(hostid):
                     hostlist.append(h)
         except:
             pass
-    
+
     isd_dict={i:{(G_to_M(s),G_to_M(d)):[] \
               for d in hostlist for s in hostlist}\
               for i in topo_SLICENDICT.keys()}
@@ -74,7 +75,7 @@ def host_traffic_gen(hostid):
             if srcid == hostid:
                 gen_ctrl = True
                 length=int(ONE_PKT_SIZE[i])
-                L4sport=int(clienttraffictype_to_L4port(i,hostid))+int(srcid)*10+int(dstid)
+                L4sport=int(clienttraffictype_to_L4port(i,hostid))+int(dstid)
                 while length > 0 :
                     pkt = Ether(src=num_to_hostmac(srcid), dst=num_to_hostmac(dstid))/   \
                           IP(src=num_to_hostipv4(srcid), dst=num_to_hostipv4(dstid))/    \
@@ -83,10 +84,35 @@ def host_traffic_gen(hostid):
                         payload = (1500-len(pkt))
                     else:
                         payload = length
-                    length = length - 1500    
-                    data = payload_gen(payload)                    
+                    length = length - 1500
+                    data = payload_gen(payload)
                     pkt = pkt/data
-                    isd_dict[i][(srcid,dstid)].append(pkt)
+                    isd_dict[i][(srcid,dstid)].append(pkt)    
+
+    for i,slicedict in EXTRATRAFFIC.items():
+        for k,v in slicedict.items():
+            if v == 0:
+                continue
+
+            srcid=G_to_M(k[0])
+            dstid=G_to_M(k[1])
+
+            if srcid == hostid:
+                gen_ctrl = True
+                length=int(ONE_PKT_SIZE[i])
+                L4sport=int(clienttraffictype_to_L4port(i,hostid))+int(dstid)
+                while length > 0 :
+                    pkt = Ether(src=num_to_hostmac(srcid), dst=num_to_hostmac(dstid))/   \
+                          IP(src=num_to_hostipv4(srcid), dst=num_to_hostipv4(dstid))/    \
+                          UDP(sport=L4sport,dport=L4sport)
+                    if length > (1500-len(pkt)):
+                        payload = (1500-len(pkt))
+                    else:
+                        payload = length
+                    length = length - 1500
+                    data = payload_gen(payload)
+                    pkt = pkt/data
+                    isd_dict[i][(srcid,dstid)].append(pkt)                 
 
     if gen_ctrl == False:
         return None
@@ -99,12 +125,14 @@ flow = host_traffic_gen(hostid)
 
 
 
+
 def send_flow(i,srcid,dstid):
     ###timestamp=time.time()
     myinterface="h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface=myinterface)
-    sendp(flow[i][(srcid,dstid)],inter=INNTER_ARRIVAL_TIME[i],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)
-    ###print(f"client {str(srcid)}-{str(dstid)} type{i}:done \t{(timestamp-GOGO_TIME):.6f}\t{(time.time()-timestamp):.6f} s")
+    print(f"client {str(srcid)}-{str(dstid)} type{i}:start \t{(timestamp-GOGO_TIME):.6f}\t{(time.time()-timestamp):.6f} s")
+    sendp(flow[i][(srcid,dstid)],inter=INNTER_ARRIVAL_TIME[i],count=NUM_PKT[i],iface=myinterface,verbose=False,socket=myL2socket)    
+    #print(f"client {str(srcid)}-{str(dstid)} type{i}:done \t{(timestamp-GOGO_TIME):.6f}\t{(time.time()-timestamp):.6f} s")
 
     """
     ###sendp(flow[i][(srcid,dstid)],count=10,iface=myinterface,verbose=False,socket=myL2socket)
@@ -130,7 +158,6 @@ def cnt_flow():
                 srcid=e[0]
                 dstid=e[1]
                 if len(v) != 0:
-                    ###print(f"client {str(srcid)}-{str(dstid)} type{i} \t{(time.time()-GOGO_TIME):.6f}\t async")
                     processlist.append(pool.apply_async(send_flow,(i,srcid,dstid)))
         pool.close()
         pool.join()
@@ -152,7 +179,7 @@ def main():
     if flow == None:
         print(f"client {str(hostid)}:nothing to send")
     else:
-        print(f"client {str(hostid)}:start")        
+        print(f"client {str(hostid)}:start")
         cnt_flow()
 
 def pre_main():
