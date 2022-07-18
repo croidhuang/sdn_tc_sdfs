@@ -111,16 +111,19 @@ def _addPath(G, spath_G):
         G.add_edge(v1,v2)
     return G
 
-def _unionEdge(v1, v2, topo_sliceG_i, loading_G, EDGE_BANDWIDTH_G, used_Edge_i, trafficE, allo_G):
+def _unionEdge(v1, v2, topo_sliceG_i, loading_G, EDGE_BANDWIDTH_G, BW_usage_i, used_Edge_i , trafficE, allo_G):
     topo_sliceG_i.add_edge(v1,v2)
 
     loading_G[v1][v2]['weight'] += trafficE
     loading_G[v2][v1]['weight'] = loading_G[v1][v2]['weight']
 
+    BW_usage_i[v1][v2] += trafficE
+    BW_usage_i[v2][v1] = BW_usage_i[v1][v2]
+
     used_Edge_i[v1][v2] += 1
     used_Edge_i[v2][v1] = used_Edge_i[v1][v2]
 
-    return topo_sliceG_i, loading_G, used_Edge_i, allo_G
+    return topo_sliceG_i, loading_G, BW_usage_i, used_Edge_i, allo_G
 
 def _updateC(C, L, estLoad, B):
     for v1, v2 in C.edges():
@@ -175,12 +178,15 @@ def _sortSpath(T, spath_gen, impact_G):
 
 def _B_to_GB(input_B, num_float=1):
     input_B = str(input_B/1000000)
-    for x in range(len(input_B)):
-        if input_B[x] == '.':
-            try:
-                output_GB = str(input_B[:x+num_float+1])+"GB"
-            except:
-                output_GB = str(input_B)+"GB"
+    if '.' in input_B:
+        for x in range(len(input_B)):
+            if input_B[x] == '.':
+                try:
+                    output_GB = str(input_B[:x+num_float+1])+"GB"
+                except:
+                    output_GB = str(input_B)+"GB"
+    else:
+        output_GB = str(input_B)                    
     return output_GB
 
 def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, showG, labels, dir_name, svg_name):
@@ -216,7 +222,7 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to
     svg_name = "topo_sliceG["+str(i)+"]"+"_"+str(icount)+".svg"
     svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
-    plt.title("traffic type "+str(i+1)+" (host "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to host "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
+    plt.title("traffic type "+str(i+1)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
     plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
@@ -240,7 +246,7 @@ def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_d
     svg_name = "topo_sliceG["+str(i)+"]"+str(icount)+".svg"
     svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
-    plt.title("traffic type "+str(i+1)+" (host "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to host "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
+    plt.title("traffic type "+str(i+1)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
     plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
@@ -266,6 +272,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
     impact_G = allo_G.copy()
     impact_G = _updateC(impact_G, loading_G, 0, EDGE_BANDWIDTH_G)
 
+    BW_usage =  {i:{u:{v:0 for v in allo_G.nodes()} for u in allo_G.nodes()}for i in range(SliceNum)}
     used_Edge = {i:{u:{v:0 for v in allo_G.nodes()} for u in allo_G.nodes()}for i in range(SliceNum)}
 
     topo_pos = nx.shell_layout(topo_G)
@@ -312,7 +319,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
             _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, dir_name, svg_name)
 
         #sort
-        sorted_HistoryTraffic = {k:v for k, v in sorted(HISTORYTRAFFIC[i].items(), key = lambda item:item[1], reverse = True)}       
+        sorted_HistoryTraffic = {k:v for k, v in sorted(HISTORYTRAFFIC[i].items(), key = lambda item:item[1], reverse = True)}
 
 
         #shortest path
@@ -371,7 +378,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                 icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
 
             for v1, v2 in spath_G.edges():
-                topo_sliceG[i], loading_G, used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, used_Edge[i], trafficE, allo_G)
+                topo_sliceG[i], loading_G, BW_usage[i], used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, BW_usage[i], used_Edge[i], trafficE, allo_G)
             if SliceDraw_ctrl == True:
                 icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
 
@@ -437,4 +444,4 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         plt.savefig(svg_path, format="svg")
         plt.clf()
 
-    return topo_sliceG
+    return BW_usage, loading_G, topo_sliceG
