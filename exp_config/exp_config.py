@@ -28,16 +28,16 @@ time
 """
 
 ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = "MAX" #False, "random", "MAX", "min", "algo"
+SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
 EXP_TYPE = "fake" #"scheduling", "routing", "fake"
 
 #seed
 RANDOM_SEED_NUM = 3 #custom
 random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-07-17 22:23:00" #custom
+timestring = "2022-07-19 23:04:00" #custom
 READPCAP_TIME = 5
-other_time = 5
+other_time = 10
 immediate_start = time.time()+ READPCAP_TIME + other_time
 GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
@@ -341,12 +341,12 @@ if EXP_TYPE == "fake":
     # sort long to short for test
     SLICE_TRAFFIC_MAP = {
         #0chat #1email #2file #3stream #4p2p #5voip #6browser
-        0: 0, #0chat
-        1: 0, #0chat
-        2: 0, #0chat
-        3: 0, #0chat
-        4: 0, #0chat
-        5: 0, #0chat
+        0: 1, #1email
+        1: 1, #1email
+        2: 1, #1email
+        3: 1, #1email
+        4: 1, #1email
+        5: 1, #1email
         6: 0, #0chat
     }
     ####################check####################
@@ -432,6 +432,7 @@ if EXP_TYPE == "fake":
             ONE_PKT_SIZE[6] * \
             float(1/INNTER_ARRIVAL_TIME[6]))+int(6-vi)
 
+    
     """
     cal bandwidth
     """
@@ -459,10 +460,16 @@ if EXP_TYPE == "fake":
     #gen
     for k in topo_SLICENDICT:
         i=k+2
-        EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[i-2]*2+10
-        EDGE_BANDWIDTH_G[i][0]['weight'] = EDGE_BANDWIDTH_G[0][i]['weight']
-        EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[i-2]*2+10
-        EDGE_BANDWIDTH_G[i][1]['weight'] = EDGE_BANDWIDTH_G[1][i]['weight']
+        if k != 6:            
+            EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[i-2]+EST_SLICE_ONE_PKT[6]
+            EDGE_BANDWIDTH_G[i][0]['weight'] = EDGE_BANDWIDTH_G[0][i]['weight']
+            EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[i-2]+EST_SLICE_ONE_PKT[6]
+            EDGE_BANDWIDTH_G[i][1]['weight'] = EDGE_BANDWIDTH_G[1][i]['weight']
+        else:
+            EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[6]+1
+            EDGE_BANDWIDTH_G[i][0]['weight'] = EDGE_BANDWIDTH_G[0][i]['weight']
+            EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[6]+1
+            EDGE_BANDWIDTH_G[i][1]['weight'] = EDGE_BANDWIDTH_G[1][i]['weight']
 
     if print_ctrl == True:
         for v1, v2 in EDGE_BANDWIDTH_G.edges():
@@ -715,6 +722,13 @@ if EXP_TYPE == "routing":
         pprint.pprint(HISTORYTRAFFIC)
         print(sum_HISTORYTRAFFIC)
         print(cnt_HISTORYTRAFFIC)
+
+    EXTRATRAFFIC = copy.deepcopy(HISTORYTRAFFIC)
+
+    #directed, not edge, host to host
+    for i, i_dict in EXTRATRAFFIC.items():
+        for v1,v2 in i_dict.keys():
+            EXTRATRAFFIC[i][(v1, v2)] = 0
 
     """
     cal bandwidth
