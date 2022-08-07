@@ -37,17 +37,17 @@ iter_ctrl = True
 if iter_ctrl != True: 
     ROUTING_TYPE = "algo"    #"algo",       "sp_sortC",                 "bellman-ford"
     SCHEDULER_TYPE = False   #False,        "MAX",                      "min",          "random",   "algo"
-    EXP_TYPE =  "routing"    #"routing",    "fake",                     "scheduling"
-    DYNBW_TYPE = "port"  #"est_avg",    "port"
+    EXP_TYPE =  "routing"    #"routing",    "scheduling_routing",                     "scheduling"
+    DYNBW_TYPE = "est_avg"  #"est_avg",    "port"
 
     #seed
     RANDOM_SEED_NUM = 3 #custom
     random.seed(RANDOM_SEED_NUM)
 
-    timestring = "2022-08-07 11:05:00" #custom
-    READPCAP_TIME = 5
-    other_time = 60
+    timestring = "2022-08-07 19:20:00" #custom
+    READPCAP_TIME = 5    
     RYUSTART_TIME = 15
+    other_time = 1*60
     immediate_start = time.time()+ READPCAP_TIME + RYUSTART_TIME + other_time
     GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
@@ -61,7 +61,7 @@ else:
 
     ROUTING_TYPE = exp_iter['ROUTING_TYPE']    #"algo",       "sp_sortC",                 "bellman-ford"
     SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']   #False,        "MAX",                      "min",          "random",   "algo"
-    EXP_TYPE =  exp_iter['EXP_TYPE']   #"routing",    "fake",                     "scheduling"
+    EXP_TYPE =  exp_iter['EXP_TYPE']   #"routing",    "scheduling_routing",                     "scheduling"
     DYNBW_TYPE = exp_iter['DYNBW_TYPE']  #"est_avg",    "port"
 
     #seed
@@ -358,7 +358,7 @@ def __SLICE_TRAFFIC_NORMALNUM(SLICE_TRAFFIC_NUM):
 
 #custom
 #gen graph
-if EXP_TYPE == "fake":
+if EXP_TYPE == "scheduling_routing":
 
     topo_h = 14
     topo_n = 9
