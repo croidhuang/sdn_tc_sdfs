@@ -7,11 +7,17 @@ import math
 import random
 import pprint
 import copy
+import json
+import os
 
 import networkx as nx
 import networkx.algorithms.tree.mst as mst
 import networkx.algorithms.operators.binary as op
 import matplotlib.pyplot as plt
+
+
+
+
 
 def check_gogo_time(timestring,immediate_start):
     structtime = time.strptime(timestring, "%Y-%m-%d %H:%M:%S")
@@ -26,20 +32,48 @@ def check_gogo_time(timestring,immediate_start):
 """
 time
 """
+iter_ctrl = True
 
-ROUTING_TYPE = "algo" #bellman-ford, algo
-SCHEDULER_TYPE = False  #False, "random", "MAX", "min", "algo"
-EXP_TYPE = "fake" #"scheduling", "routing", "fake"
+if iter_ctrl != True: 
+    ROUTING_TYPE = "algo"    #"algo",       "sp_sortC",                 "bellman-ford"
+    SCHEDULER_TYPE = False   #False,        "MAX",                      "min",          "random",   "algo"
+    EXP_TYPE =  "routing"    #"routing",    "fake",                     "scheduling"
+    DYNBW_TYPE = "port"  #"est_avg",    "port"
 
-#seed
-RANDOM_SEED_NUM = 3 #custom
-random.seed(RANDOM_SEED_NUM)
+    #seed
+    RANDOM_SEED_NUM = 3 #custom
+    random.seed(RANDOM_SEED_NUM)
 
-timestring = "2022-07-19 23:04:00" #custom
-READPCAP_TIME = 5
-other_time = 10
-immediate_start = time.time()+ READPCAP_TIME + other_time
-GOGO_TIME = check_gogo_time(timestring,immediate_start)
+    timestring = "2022-08-07 11:05:00" #custom
+    READPCAP_TIME = 5
+    other_time = 60
+    RYUSTART_TIME = 15
+    immediate_start = time.time()+ READPCAP_TIME + RYUSTART_TIME + other_time
+    GOGO_TIME = check_gogo_time(timestring,immediate_start)
+
+else:
+    username='croid'
+    homedir = os.path.expanduser('~'+username)
+    try:
+        exp_iter = json.load(open(homedir+"/exp_iter.txt"))
+    except:
+        print('change config username')
+
+    ROUTING_TYPE = exp_iter['ROUTING_TYPE']    #"algo",       "sp_sortC",                 "bellman-ford"
+    SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']   #False,        "MAX",                      "min",          "random",   "algo"
+    EXP_TYPE =  exp_iter['EXP_TYPE']   #"routing",    "fake",                     "scheduling"
+    DYNBW_TYPE = exp_iter['DYNBW_TYPE']  #"est_avg",    "port"
+
+    #seed
+    RANDOM_SEED_NUM = 3 #custom
+    random.seed(RANDOM_SEED_NUM)
+
+    timestring = exp_iter['timestring'] #custom
+    READPCAP_TIME = 5
+    other_time = 60
+    RYUSTART_TIME = 15
+    immediate_start = time.time()+ READPCAP_TIME + RYUSTART_TIME + other_time
+    GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
 #unit is second
 TOTAL_TIME = 4*60 #custom
@@ -279,11 +313,10 @@ def __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME):
 
 def __MININET_BW (EDGE_BANDWIDTH_G):
     MININET_BW = {}
-    for v1, v2 in EDGE_BANDWIDTH_G.edges():
-        ###c = float(1/TOTAL_TIME)
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():        
         c = 1
-        #mininet unit is MBbit, M = 2^20~1000000, 1Byte = 8bit
-        MININET_BW[(v1, v2)] = float(EDGE_BANDWIDTH_G[v1][v2]['weight'] * c / (2**20) * 8)
+        #mininet unit is Mbit, M = 1000000(not 2**20 here), 1Byte = 8bit
+        MININET_BW[(v1, v2)] = round(EDGE_BANDWIDTH_G[v1][v2]['weight'] * c / (10**6) * 8,5)
     if print_ctrl == True:
         print(MININET_BW)
     return MININET_BW
@@ -307,7 +340,21 @@ def __gen_scaledict(pair_list, traffic_cnt, lowestscale):
 
     return scaledict
 
+def __SLICE_TRAFFIC_NORMALNUM(SLICE_TRAFFIC_NUM):
+    slice_n = topo_e*len(topo_SLICENDICT)*historytraffic_send_ratio
 
+    sum_slice = 0
+    for k, v in SLICE_TRAFFIC_NUM.items():
+        sum_slice += v
+    if sum_slice == 0:
+       sum_slice = 1
+
+    SLICE_TRAFFIC_NORMALNUM = {i:0 for i in topo_SLICENDICT.keys()}
+    for k,v in SLICE_TRAFFIC_NORMALNUM.items():
+        SLICE_TRAFFIC_NORMALNUM[k] = round((SLICE_TRAFFIC_NUM[k]/sum_slice)*slice_n)
+        #if SLICE_TRAFFIC_NORMALNUM[k] == 0:
+            #SLICE_TRAFFIC_NORMALNUM[k] = 1
+    return SLICE_TRAFFIC_NORMALNUM
 
 #custom
 #gen graph
@@ -341,14 +388,23 @@ if EXP_TYPE == "fake":
     # sort long to short for test
     SLICE_TRAFFIC_MAP = {
         #0chat #1email #2file #3stream #4p2p #5voip #6browser
-        0: 1, #1email
-        1: 1, #1email
-        2: 1, #1email
-        3: 1, #1email
-        4: 1, #1email
-        5: 1, #1email
-        6: 0, #0chat
+        0: 1,
+        1: 1,
+        2: 1,
+        3: 1,
+        4: 1,
+        5: 1,
+        6: 0,
     }
+    """
+    0: 624,
+    1: 4485,
+    2: 1029862,
+    3: 245670,
+    4: 238271,
+    5: 14385,
+    6: 19673,
+    """
     ####################check####################
 
     #MUST CHECK you want avg or median
@@ -403,6 +459,8 @@ if EXP_TYPE == "fake":
     #gen and sum traffic
     sum_HISTORYTRAFFIC = 0
     cnt_HISTORYTRAFFIC = 0
+    check_TRAFFIC=0
+    x_HISTORYTRAFFIC = {i:0 for i in topo_SLICENDICT.keys()}
     for i, i_dict in HISTORYTRAFFIC.items():
         v1=i
         v2=i+7
@@ -410,17 +468,16 @@ if EXP_TYPE == "fake":
             ONE_PKT_SIZE[i] * \
             float(1/INNTER_ARRIVAL_TIME[i]))
         sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+        check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
         cnt_HISTORYTRAFFIC += 1
+        x_HISTORYTRAFFIC[i]+= 1
 
     if print_ctrl == True:
         pprint.pprint(HISTORYTRAFFIC)
         print(sum_HISTORYTRAFFIC)
         print(cnt_HISTORYTRAFFIC)
 
-
     EXTRATRAFFIC = copy.deepcopy(HISTORYTRAFFIC)
-
-    #directed, not edge, host to host
     for i, i_dict in EXTRATRAFFIC.items():
         for v1,v2 in i_dict.keys():
             EXTRATRAFFIC[i][(v1, v2)] = 0
@@ -431,25 +488,26 @@ if EXP_TYPE == "fake":
         EXTRATRAFFIC[6][(v1, v2)] = int(\
             ONE_PKT_SIZE[6] * \
             float(1/INNTER_ARRIVAL_TIME[6]))+int(6-vi)
+        check_TRAFFIC += EXTRATRAFFIC[6][(v1, v2)]
 
-    
+    check_TRAFFIC = check_TRAFFIC*TOTAL_TIME
     """
     cal bandwidth
     """
 
     #cfs     50%     4.10e+10
     mininet_cpu_py = (4.10e+10)
-    mininet_cpu_py = mininet_cpu_py/8/(2**20)
-    if int(sum_HISTORYTRAFFIC/(2**20)) > mininet_cpu_py:
-        print(f"{sum_HISTORYTRAFFIC/(2**20)}>{mininet_cpu_py}")
+    mininet_cpu_py = mininet_cpu_py/8/(10**6)
+    if int(sum_HISTORYTRAFFIC/(10**6)) > mininet_cpu_py:
+        print(f"{sum_HISTORYTRAFFIC/(10**6)}>{mininet_cpu_py}")
     else:
-        print(f"{sum_HISTORYTRAFFIC/(2**20)}<{mininet_cpu_py}")
+        print(f"{sum_HISTORYTRAFFIC/(10**6)}<={mininet_cpu_py}")
 
     python_multiprocess = 8*4
     if int(cnt_HISTORYTRAFFIC) > python_multiprocess:
         print(f"{cnt_HISTORYTRAFFIC}>{python_multiprocess}")
     else:
-        print(f"{cnt_HISTORYTRAFFIC}<{python_multiprocess}")
+        print(f"{cnt_HISTORYTRAFFIC}<={python_multiprocess}")
 
 
     EDGE_BANDWIDTH_G = topo_G.copy()
@@ -460,10 +518,10 @@ if EXP_TYPE == "fake":
     #gen
     for k in topo_SLICENDICT:
         i=k+2
-        if k != 6:            
-            EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[i-2]+EST_SLICE_ONE_PKT[6]
+        if k != 6:   
+            EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[i-2]*x_HISTORYTRAFFIC[k]+EST_SLICE_ONE_PKT[6]
             EDGE_BANDWIDTH_G[i][0]['weight'] = EDGE_BANDWIDTH_G[0][i]['weight']
-            EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[i-2]+EST_SLICE_ONE_PKT[6]
+            EDGE_BANDWIDTH_G[1][i]['weight'] = EST_SLICE_ONE_PKT[i-2]*x_HISTORYTRAFFIC[k]+EST_SLICE_ONE_PKT[6]
             EDGE_BANDWIDTH_G[i][1]['weight'] = EDGE_BANDWIDTH_G[1][i]['weight']
         else:
             EDGE_BANDWIDTH_G[0][i]['weight'] = EST_SLICE_ONE_PKT[6]+1
@@ -577,12 +635,14 @@ if EXP_TYPE == "routing":
 
     topo_h = 7
     topo_n = 7
+    topo_e = (topo_n-1)*topo_n
 
     #exp var ratio
-    historytraffic_send_ratio = 0.5 #custom
+    edge_min_connect = 3 #custom at least 1 connect
+    python_multiprocess = 4*8
+    historytraffic_send_ratio = python_multiprocess/(topo_e*len(topo_SLICENDICT)) #custom
     historytraffic_scale = 0.8 #custom
-    edge_bandwidth_scale = 0.8 #custom
-    edge_min_connect = 2 #custom at least 1 connect
+    edge_bandwidth_scale = 0.8 #custom    
 
     topo_G = nx.Graph()
     hostlist = [i for i in range(topo_h)]
@@ -649,6 +709,22 @@ if EXP_TYPE == "routing":
     }
     ####################check####################
 
+    ####################check####################
+    SLICE_TRAFFIC_NUM = {
+        #0chat #1email #2file #3stream #4p2p #5voip #6browser
+        0: 2, #3stream
+        1: 4, #5voip
+        2: 20, #0chat
+        3: 3, #6browser
+        4: 2, #1email
+        5: 0, #2file
+        6: 2, #4p2p
+    }
+    ####################check####################
+
+    SLICE_TRAFFIC_NORMALNUM = __SLICE_TRAFFIC_NORMALNUM(SLICE_TRAFFIC_NUM)
+
+
     #MUST CHECK you want avg or median
     INNTER_ARRIVAL_TIME = __INNTER_ARRIVAL_TIME(orig_AVG_INNTER_ARRIVAL_TIME, SLICE_TRAFFIC_MAP)
     #MUST CHECK you want avg or median
@@ -696,14 +772,19 @@ if EXP_TYPE == "routing":
     #gen and sum traffic
     sum_HISTORYTRAFFIC = 0
     cnt_HISTORYTRAFFIC = 0
+    check_TRAFFIC=0
     for i, i_dict in HISTORYTRAFFIC.items():
         pair_list=[]
         traffic_cnt=[]
-        #shffle list
+        # send ratio
+        send_list=[e for e in i_dict.keys()]
+        if len(send_list) >= SLICE_TRAFFIC_NORMALNUM[i]:   
+            choice_send_list = random.sample(send_list, SLICE_TRAFFIC_NORMALNUM[i])
+        else:
+            choice_send_list = send_list
+        #shuffle list
         for e in i_dict.keys():
-            if random.random() > historytraffic_send_ratio:
-                continue
-            else:
+            if e in choice_send_list:
                 pair_list.append(e)
                 traffic_cnt.append(0)
             scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale)
@@ -716,6 +797,7 @@ if EXP_TYPE == "routing":
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
                 scaledict[p])
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+            check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
 
     if print_ctrl == True:
@@ -724,11 +806,11 @@ if EXP_TYPE == "routing":
         print(cnt_HISTORYTRAFFIC)
 
     EXTRATRAFFIC = copy.deepcopy(HISTORYTRAFFIC)
-
-    #directed, not edge, host to host
     for i, i_dict in EXTRATRAFFIC.items():
         for v1,v2 in i_dict.keys():
             EXTRATRAFFIC[i][(v1, v2)] = 0
+
+    check_TRAFFIC=check_TRAFFIC*TOTAL_TIME
 
     """
     cal bandwidth
@@ -736,17 +818,16 @@ if EXP_TYPE == "routing":
 
     #cfs     50%     4.10e+10
     mininet_cpu_py = (4.10e+10)
-    mininet_cpu_py = mininet_cpu_py/8/(2**20)
-    if int(sum_HISTORYTRAFFIC/(2**20)) > mininet_cpu_py:
-        print(f"{sum_HISTORYTRAFFIC/(2**20)}>{mininet_cpu_py}")
+    mininet_cpu_py = mininet_cpu_py/8/(10**6)
+    if int(sum_HISTORYTRAFFIC/(10**6)) > mininet_cpu_py:
+        print(f"{sum_HISTORYTRAFFIC/(10**6)}>{mininet_cpu_py}")
     else:
-        print(f"{sum_HISTORYTRAFFIC/(2**20)}<{mininet_cpu_py}")
+        print(f"{sum_HISTORYTRAFFIC/(10**6)}<={mininet_cpu_py}")
 
-    python_multiprocess = 8*4
     if int(cnt_HISTORYTRAFFIC) > python_multiprocess:
         print(f"{cnt_HISTORYTRAFFIC}>{python_multiprocess}")
     else:
-        print(f"{cnt_HISTORYTRAFFIC}<{python_multiprocess}")
+        print(f"{cnt_HISTORYTRAFFIC}<={python_multiprocess}")
 
 
     EDGE_BANDWIDTH_G = topo_G.copy()
