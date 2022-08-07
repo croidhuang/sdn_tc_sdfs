@@ -68,10 +68,11 @@ from exp_config.exp_config import \
 ROUTING_TYPE, SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
 GOGO_TIME, TOTAL_TIME, MONITOR_PERIOD,     \
 EST_SLICE_ONE_PKT ,  EST_SLICE_AGING,    \
+DYNBW_TYPE,     \
 SLICE_TRAFFIC_MAP,     \
 topo_G,     \
 topo_SLICENDICT, topo_GNode0_alignto_mininetSwitchNum,     \
-HISTORYTRAFFIC, EDGE_BANDWIDTH_G
+HISTORYTRAFFIC, EDGE_BANDWIDTH_G, check_TRAFFIC
 
 
 
@@ -99,12 +100,12 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.AllPacketInfo_ctrl   = False
         self.SliceDraw_ctrl       = False
         self.EstDraw_ctrl         = False
-        self.ClassifierPrint_ctrl = True
+        self.ClassifierPrint_ctrl = False
         self.ScheudulerPrint_ctrl = False
         self.ActionPrint_ctrl     = False
         self.MonitorPrint_ctrl    = False
         self.LatencyPrint_ctrl    = False
-        self.BWRecord_ctrl        = True
+        self.BWRecord_ctrl        = False
 
 
         #function_ctrl
@@ -116,6 +117,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.Monitor_ctrl      = True
         self.Latency_ctrl      = False
         self.BWaging_ctrl      = False
+        self.DynamicBW_ctrl    = DYNBW_TYPE #"port","est_avg"
 
 
         #topology info from mininet
@@ -174,16 +176,42 @@ class SimpleSwitch13(app_manager.RyuApp):
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
         file_name = time.time()
-        self.csv_throughput_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + ".csv"
-        self.csv_estBW_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + "_BW.csv"
+        record_type = str(ROUTING_TYPE) + "_" + str(SCHEDULER_TYPE) + "_" + str(EXP_TYPE) + "_" + str(DYNBW_TYPE)
+        self.csv_throughput_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + record_type + ".csv"
+        self.csv_estBW_record_filepath = "./"+str(dir_name)+"/"+ str(file_name) + "_" + record_type + ".csv"
 
         with open(self.csv_throughput_record_filepath, "w") as csv_throughput_record_file:
-            row = [GOGO_TIME]
+
+            row = [record_type]
             for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
                 for csvportno in toswitchdict.values():
-                    row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
-                    row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
+                    if EXP_TYPE == "routing":
+                        if csvportno == 1:
+                            row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
+                            row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
+                    else:
+                        row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
+                        row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
             writer = csv.writer(csv_throughput_record_file)
+            writer.writerow(row)
+            row = []
+
+            row = [check_TRAFFIC]
+            first_col = ord('B')
+            first_row = 3
+            csv_col_i = 0
+            for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
+                for csvportno in toswitchdict.values():
+                    if EXP_TYPE == "routing":
+                        if csvportno == 1:
+                            row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
+                            row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
+                            csv_col_i += 2
+                    else:
+                        row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
+                        row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
+                        csv_col_i += 2
+            writer = csv.writer(csv_throughput_record_file)                        
             writer.writerow(row)
             row = []
 
@@ -247,6 +275,15 @@ class SimpleSwitch13(app_manager.RyuApp):
             6: "6 Browser",  # 2Facebook, 13 Tor
         }
 
+        #mapping SLICE_TRAFFIC_MAP
+        for k,v in self.app_to_service.items():
+            self.app_to_service[k] = SLICE_TRAFFIC_MAP[v]
+        #write new by orignal, so copy temp
+        temp_service_to_string = copy.deepcopy(self.service_to_string)
+        for k in self.service_to_string.keys():
+            if k != "unknown":
+                self.service_to_string[k] = temp_service_to_string[SLICE_TRAFFIC_MAP[k]]
+
         """
         0 AIM        :0 Chat
         1 Email      :1 Email
@@ -266,15 +303,6 @@ class SimpleSwitch13(app_manager.RyuApp):
         15 Voipbuster:5 VoIP
         16 YouTube   :3 Streaming
         """
-
-        #mapping SLICE_TRAFFIC_MAP
-        for k,v in self.app_to_service.items():
-            self.app_to_service[k] = SLICE_TRAFFIC_MAP[v]
-        #write new by orignal, so copy temp
-        temp_service_to_string = copy.deepcopy(self.service_to_string)
-        for k in self.service_to_string.keys():
-            if k != "unknown":
-                self.service_to_string[k] = temp_service_to_string[SLICE_TRAFFIC_MAP[k]]
 
         #monitor
         self.sleep_period = MONITOR_PERIOD
@@ -334,10 +362,12 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         #slice bandwidth (estimate)
         self.slice_bandfree = {i:{u:{v:1 for v in self.SwitchOutportDict.keys()} for u in self.SwitchOutportDict.keys()} for i in self.SliceDict.keys()}
-
         for u in self.SwitchOutportDict.keys():
             for v in self.SwitchOutportDict.keys():
                 self.slice_bandfree["unknown"] = {u:{v:4294967294}}
+
+        #slice bandwidth (realtime)
+        self.edge_realtime_bandfree = {u:{v:1 for v in self.SwitchOutportDict.keys()} for u in self.SwitchOutportDict.keys()} 
 
         self.slice_bandpkt = copy.deepcopy(EST_SLICE_ONE_PKT)
         self.slice_bandpkt["unknown"] = 60
@@ -399,7 +429,6 @@ class SimpleSwitch13(app_manager.RyuApp):
                         minBW = self._find_minBW(BW = divide_BW[i], p_gen = sdpath)
                         self.slice_bandfree[i][s][dsts] = minBW
                         self.slice_bandfree[i][dsts][s] = self.slice_bandfree[i][s][dsts]
-
 
         if self.BWRecord_ctrl == True:
             for s in self.SwitchOutportDict.keys():
@@ -581,6 +610,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
     #different switch to lowload slice
     def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):
+
         #host to id
         if layerid == "ipv4":
             dsts = int(self.HostDstsDict[int(hostipv4_to_num(dst_host))])
@@ -601,11 +631,21 @@ class SimpleSwitch13(app_manager.RyuApp):
             flow = copy.deepcopy(self.slice_class_count[class_result][int(hostipv4_to_num(dst_host))])
             latency = copy.deepcopy(self.latency[switchid])
             #get edge_banfree
-            bandfree = {i:0 for i in range(self.SliceNum)}
-            p_gen = {i:0 for i in range(self.SliceNum)}
-            for pi in self.SliceDict.keys():
-                p_gen[pi] = self._src_to_dst_path(subG = copy.deepcopy(self.topo_slice_G[pi]), s = switchid, dsts = dsts)
-                bandfree[pi] = self._find_minBW(BW = self.slice_bandfree[pi], p_gen = p_gen[pi])
+
+            if self.DynamicBW_ctrl == "est_avg":
+                bandfree = {i:0 for i in range(self.SliceNum)}
+                p_gen = {i:0 for i in range(self.SliceNum)}
+                for pi in self.SliceDict.keys():
+                    p_gen[pi] = self._src_to_dst_path(subG = copy.deepcopy(self.topo_slice_G[pi]), s = switchid, dsts = dsts)
+                    bandfree[pi] = self._find_minBW(BW = self.slice_bandfree[pi], p_gen = p_gen[pi])
+            elif self.DynamicBW_ctrl == "port":
+                bandfree = {i:0 for i in range(self.SliceNum)}
+                p_gen = {i:0 for i in range(self.SliceNum)}
+                for pi in self.SliceDict.keys():
+                    p_gen[pi] = self._src_to_dst_path(subG = copy.deepcopy(self.topo_slice_G[pi]), s = switchid, dsts = dsts)
+                    bandfree[pi] = self._find_minBW(BW = self.edge_realtime_bandfree , p_gen = p_gen[pi])
+            else:
+                print("GG: self.DynamicBW_ctrl")
 
 
             if self.Scheuduler_ctrl == False:
@@ -626,33 +666,38 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
 
-        if p_gen[slice_num] == []:
+        if self.DynamicBW_ctrl == "est_avg":
+            if p_gen[slice_num] == []:
+                pass
+            else:
+                for s1,s2 in zip(p_gen[slice_num][0::1], p_gen[slice_num][1::1]):
+                    # consume each switch slice
+                    #test
+                    self.slice_bandfree[slice_num][s1][s2] -= self.slice_bandpkt[class_result]
+                    self.slice_bandfree[slice_num][s2][s1] = self.slice_bandfree[slice_num][s1][s2]
+
+                    # aging flow in slice
+                    self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[class_result]
+                    self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
+        elif self.DynamicBW_ctrl == "port": 
             pass
         else:
-            for s1,s2 in zip(p_gen[slice_num][0::1], p_gen[slice_num][1::1]):
-                # consume each switch slice
-                #test
-                self.slice_bandfree[slice_num][s1][s2] -= self.slice_bandpkt[class_result]
-                self.slice_bandfree[slice_num][s2][s1] = self.slice_bandfree[slice_num][s1][s2]
+            print("GG: self.DynamicBW_ctrl")
 
-                # aging flow in slice
-                self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[class_result]
-                self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
         if self.BWRecord_ctrl == True:
             csvtime = time.time()
             bandfree = {i:0 for i in range(self.SliceNum)}
             for pi in self.SliceDict.keys():
                 p_gen[pi] = self._src_to_dst_path(subG = copy.deepcopy(self.topo_slice_G[pi]), s = switchid, dsts = dsts)
                 bandfree[pi] = self._find_minBW(BW = self.slice_bandfree[pi], p_gen = p_gen[pi])
-            if csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
-                with open(self.csv_estBW_record_filepath, "a") as csv_estBW_record_file:
-                    row=[time.time()]
-                    row.append(str(class_result)+"/"+str(slice_num)+":"+str(self.slice_bandpkt[class_result]))
-                    row.append(str(switchid)+"-"+str(dsts))
-                    for i,v in bandfree.items():
-                        row.append(str(v))
-                    writer = csv.writer(csv_estBW_record_file)
-                    writer.writerow(row)
+            with open(self.csv_estBW_record_filepath, "a") as csv_estBW_record_file:
+                row=[time.time()]
+                row.append(str(class_result)+"/"+str(slice_num)+":"+str(self.slice_bandpkt[class_result]))
+                row.append(str(switchid)+"-"+str(dsts))
+                for i,v in bandfree.items():
+                    row.append(str(v))
+                writer = csv.writer(csv_estBW_record_file)
+                writer.writerow(row)
 
         return out_port
 
@@ -664,7 +709,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self.logger.debug("packet truncated: only {} of {} bytes",
                               ev.msg.msg_len, ev.msg.total_len)
         msg = ev.msg
-        datapath = msg.datapath
+        datapath = msg.datapath        
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         in_port = msg.match["in_port"]
@@ -762,7 +807,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             break
 
         self.packet_count += 1
-        if self.AllPacketInfo_ctrl == True:
+        if self.AllPacketInfo_ctrl == True and ipv4_dst != "0.0.0.0" and ipv4_src != "0.0.0.0":
             self.logger.info("---------------------------------------------------------------------------------------")
             self.logger.info("Count switch in_port eth_src           eth_dst           ip_src         ip_dst")
             self.logger.info(f"{self.packet_count:>5} {switchid:>6} {in_port:>7} {eth_src:>17} {eth_dst:>17} {ip_src:<8} {src_port:>5} {ip_dst:<8} {dst_port:>5}")
@@ -843,8 +888,9 @@ class SimpleSwitch13(app_manager.RyuApp):
                 if self.Classifier_ctrl == True:
                     #model return result is list
                     app_result = self.loaded_model.predict(X_test)
-                    app_result = int(app_result[0])
+                    app_result = int(app_result[0])                
                     class_result = self.app_to_service[app_result]
+                    class_result = SLICE_TRAFFIC_MAP[class_result]
                 else:
                     try:
                         if udp_src:
@@ -861,19 +907,14 @@ class SimpleSwitch13(app_manager.RyuApp):
                 print("unknown class")
                 class_result = "unknown"
 
-
             #for scheduler
             #check already comes
             src_h = int(hostipv4_to_num(ipv4_src))
             dst_h = int(hostipv4_to_num(ipv4_dst))
 
             try:
-                if self.slice_class_count[class_result][src_h][dst_h] == 0:
-                    self.slice_class_count[class_result][src_h][dst_h] += 1
-                else:
-                    class_result = "unknown"
-                    self.slice_class_count[class_result][src_h][dst_h] += 1
-            except:                
+                self.slice_class_count[class_result][src_h][dst_h] += 1
+            except:            
                 print(f"GG: unknown L3 switch {src_h}-{dst_h}")
                 pass
 
@@ -919,14 +960,14 @@ class SimpleSwitch13(app_manager.RyuApp):
 
                 actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
                 self.add_flow(datapath = datapath,
-                            priority = 1,
+                            priority = 20,
                             match = match,
                             actions = actions)
                 self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
             #out_port
-            out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
-            out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
+            out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]  
+            out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")      
             if self.ActionPrint_ctrl == True:
                 self.logger.info(f"dst ip    s{switchid:<2}(out = {out_port:>2})")
             #match
@@ -950,7 +991,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
             actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
             self.add_flow(datapath = datapath,
-                          priority = 1,
+                          priority = 10,
                           match = match,
                           actions = actions)
             self._send_package(msg, datapath, in_port, actions)
@@ -962,7 +1003,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             match = datapath.ofproto_parser.OFPMatch(eth_dst = eth_dst)
             actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
             self.add_flow(datapath = datapath,
-                          priority = 1,
+                          priority = 30,
                           match = match,
                           actions = actions)
             self._send_package(msg, datapath, in_port, actions)
@@ -1116,19 +1157,37 @@ class SimpleSwitch13(app_manager.RyuApp):
                 if stat.port_no < (len(self.mininetPortDict[dpid])+1):
                     portno = stat.port_no
 
-                    currrx = stat.rx_bytes
-                    prevrx = self.moniter_record["prev_rx_bytes"][dpid][portno]
-                    rx_bytes = currrx - prevrx
-
-                    self.moniter_record["prev_rx_bytes"][dpid][portno] = currrx
+                    rx_bytes = stat.rx_bytes - self.moniter_record["prev_rx_bytes"][dpid][portno]
+                    self.moniter_record["prev_rx_bytes"][dpid][portno] = stat.rx_bytes
                     self.moniter_record["rx_curr"][dpid][portno] = rx_bytes
 
-                    currtx = stat.tx_bytes
-                    prevtx = self.moniter_record["prev_tx_bytes"][dpid][portno]
-                    tx_bytes = currtx - prevtx
-
-                    self.moniter_record["prev_tx_bytes"][dpid][portno] = currtx
+                    tx_bytes = stat.tx_bytes - self.moniter_record["prev_tx_bytes"][dpid][portno]
+                    self.moniter_record["prev_tx_bytes"][dpid][portno] = stat.tx_bytes
                     self.moniter_record["tx_curr"][dpid][portno] = tx_bytes
+
+                    if self.DynamicBW_ctrl == "port":
+                        dsts = self.mininetPortDict[dpid][stat.port_no]
+                        bandload = self.moniter_record["rx_curr"][dpid][portno] + self.moniter_record["tx_curr"][dpid][portno]
+                        self.edge_realtime_bandfree[dpid][dsts] = self.edge_bandwidth[dpid][dsts] - bandload
+
+        #monitor record csv file
+        csvtime = time.time()        
+        if dpid == 1 and csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
+            with open(self.csv_throughput_record_filepath, "a") as csv_throughput_record_file:
+                row = [csvtime]
+                for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
+                    for csvportno in toswitchdict.values():
+                        if EXP_TYPE == "routing":
+                            if csvportno == 1:
+                                row.append(self.moniter_record["rx_curr"][csvsrcid][csvportno])
+                                row.append(self.moniter_record["tx_curr"][csvsrcid][csvportno])
+                        else:
+                            row.append(self.moniter_record["rx_curr"][csvsrcid][csvportno])
+                            row.append(self.moniter_record["tx_curr"][csvsrcid][csvportno])
+                        self.moniter_record["rx_curr"][csvsrcid][csvportno]=0
+                        self.moniter_record["tx_curr"][csvsrcid][csvportno]=0
+                writer = csv.writer(csv_throughput_record_file)
+                writer.writerow(row)
 
         #monitor pkts bytes
         if self.MonitorPrint_ctrl == True:
@@ -1168,26 +1227,4 @@ class SimpleSwitch13(app_manager.RyuApp):
                         ev.msg.datapath.id, stat.port_no,
                         stat.rx_packets, stat.rx_bytes, self.moniter_record["rx_curr"][dpid][portno],
                         stat.tx_packets, stat.tx_bytes, self.moniter_record["tx_curr"][dpid][portno],
-                        latency, bandfree, bandload, bar)
-
-        #monitor record csv file
-        csvtime = time.time()
-        if dpid and csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
-            with open(self.csv_throughput_record_filepath, "a") as csv_throughput_record_file:
-                row = [csvtime]
-
-                for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
-                    for csvportno in toswitchdict.values():
-                        if self.moniter_record["rx_curr"][csvsrcid][csvportno] > 0:
-                            row.append(self.moniter_record["rx_curr"][csvsrcid][csvportno])
-                            self.moniter_record["rx_curr"][csvsrcid][csvportno] = 0
-                        else:
-                            row.append(0)
-                        if self.moniter_record["tx_curr"][csvsrcid][csvportno] > 0:
-                            row.append(self.moniter_record["tx_curr"][csvsrcid][csvportno])
-                            self.moniter_record["tx_curr"][csvsrcid][csvportno] = 0
-                        else:
-                            row.append(0)
-
-                writer = csv.writer(csv_throughput_record_file)
-                writer.writerow(row)
+                        latency, bandfree, bandload, bar)        
