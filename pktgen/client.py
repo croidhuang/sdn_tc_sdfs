@@ -1,3 +1,4 @@
+from tabnanny import verbose
 from scapy.all import *
 from scapy.layers.inet import Ether, IP, UDP, TCP
 from scapy.layers.inet6 import IPv6
@@ -19,7 +20,7 @@ sys.path.insert(1,"./")
 from exp_config.exp_config import \
 SLICE_TRAFFIC_MAP, NUM_PKT,     \
 SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
-GOGO_TIME, TOTAL_TIME, FIRST_TIME_SLEEP, READPCAP_TIME,     \
+GOGO_TIME, TOTAL_TIME, READPKT_TIME, BETWEEN_HISTORY_EXTRA_TIME,     \
 ONE_PKT_SIZE, INNTER_ARRIVAL_TIME,     \
 topo_G,     \
 topo_SLICENDICT,     \
@@ -140,9 +141,10 @@ def send_flow(i,srcid,dstid,timestamp):
     print(f"client {str(hostid)}:start")
     myinterface = "h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface = myinterface)
-    while (timestamp := float(time.time())) < GOGO_TIME-1:
-        pass    
+    while (timestamp := time.time()) < GOGO_TIME:
+        pass
     sendp(flow[i][(srcid,dstid)],inter = INNTER_ARRIVAL_TIME[i],count = NUM_PKT[i],iface = myinterface,verbose = False,socket = myL2socket)
+
     print(str("client "+str(srcid)+"-"+str(dstid)+" type"+i+":done \t"+str(timestamp-GOGO_TIME)+"\t"+str(time.time()-timestamp)+" s"))
 
 def pre_send_history_flow(i,srcid,dstid,timestamp):
@@ -191,7 +193,7 @@ def cnt_flow(timestamp):
             for e,v in slicedict.items():
                 srcid = e[0]
                 dstid = e[1]
-                if len(v) != 0:                    
+                if len(v) != 0:
                     timeout = TOTAL_TIME
                     pool.schedule(send_flow, (i,srcid,dstid,timestamp), timeout = timeout)
         pool.close()
@@ -212,8 +214,8 @@ def cnt_flow():
 """
 
 #整個flow沒有的話不執行
-def main():
-    timestamp = time.time()
+def main(GOGO_TIME):
+    timestamp = GOGO_TIME
     if flow == None:
         print(f"client {str(hostid)}:nothing to send")
     else:
@@ -225,7 +227,7 @@ def pre_main():
         print(f"client {str(hostid)}:nothing to presend")
     else:
         pre_history_flow(timestamp)
-    time.sleep(5)
+    time.sleep(BETWEEN_HISTORY_EXTRA_TIME)
     if extra_flow == None:
         print(f"client {str(hostid)}:nothing to extrasend")
     else:
@@ -234,10 +236,8 @@ def pre_main():
 
 # 主要執行
 if __name__ == "__main__":
-    if GOGO_TIME:
-        pre_main()
-        time.sleep(GOGO_TIME-float(time.time())-READPCAP_TIME)
-    else:
-        pre_main()
-        time.sleep(READPCAP_TIME)
-    main()
+    pre_main()
+    sleeptime = (GOGO_TIME-time.time()-READPKT_TIME)
+    if sleeptime > 2:
+        time.sleep(sleeptime)
+    main(GOGO_TIME)
