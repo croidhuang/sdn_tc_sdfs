@@ -98,7 +98,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
-        self.SliceDraw_ctrl       = False
+        self.SliceDraw_ctrl       = True
         self.EstDraw_ctrl         = False
         self.ClassifierPrint_ctrl = False
         self.ScheudulerPrint_ctrl = False
@@ -185,7 +185,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             row = [record_type]
             for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
                 for csvportno in toswitchdict.values():
-                    if EXP_TYPE == "routing":
+                    if "routing" in EXP_TYPE:
                         if csvportno == 1:
                             row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
                             row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
@@ -202,7 +202,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             csv_col_i = 0
             for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
                 for csvportno in toswitchdict.values():
-                    if EXP_TYPE == "routing":
+                    if "routing" in EXP_TYPE:
                         if csvportno == 1:
                             row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
                             row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
@@ -211,7 +211,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                         row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
                         row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
                         csv_col_i += 2
-            writer = csv.writer(csv_throughput_record_file)                        
+            writer = csv.writer(csv_throughput_record_file)
             writer.writerow(row)
             row = []
 
@@ -367,7 +367,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 self.slice_bandfree["unknown"] = {u:{v:4294967294}}
 
         #slice bandwidth (realtime)
-        self.edge_realtime_bandfree = {u:{v:1 for v in self.SwitchOutportDict.keys()} for u in self.SwitchOutportDict.keys()} 
+        self.edge_realtime_bandfree = {u:{v:1 for v in self.SwitchOutportDict.keys()} for u in self.SwitchOutportDict.keys()}
 
         self.slice_bandpkt = copy.deepcopy(EST_SLICE_ONE_PKT)
         self.slice_bandpkt["unknown"] = 60
@@ -679,7 +679,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     # aging flow in slice
                     self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[class_result]
                     self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
-        elif self.DynamicBW_ctrl == "port": 
+        elif self.DynamicBW_ctrl == "port":
             pass
         else:
             print("GG: self.DynamicBW_ctrl")
@@ -709,7 +709,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             self.logger.debug("packet truncated: only {} of {} bytes",
                               ev.msg.msg_len, ev.msg.total_len)
         msg = ev.msg
-        datapath = msg.datapath        
+        datapath = msg.datapath
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         in_port = msg.match["in_port"]
@@ -888,7 +888,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 if self.Classifier_ctrl == True:
                     #model return result is list
                     app_result = self.loaded_model.predict(X_test)
-                    app_result = int(app_result[0])                
+                    app_result = int(app_result[0])
                     class_result = self.app_to_service[app_result]
                     class_result = SLICE_TRAFFIC_MAP[class_result]
                 else:
@@ -914,7 +914,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
             try:
                 self.slice_class_count[class_result][src_h][dst_h] += 1
-            except:            
+            except:
                 print(f"GG: unknown L3 switch {src_h}-{dst_h}")
                 pass
 
@@ -966,8 +966,8 @@ class SimpleSwitch13(app_manager.RyuApp):
                 self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
             #out_port
-            out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]  
-            out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")      
+            out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
+            out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
             if self.ActionPrint_ctrl == True:
                 self.logger.info(f"dst ip    s{switchid:<2}(out = {out_port:>2})")
             #match
@@ -1171,13 +1171,13 @@ class SimpleSwitch13(app_manager.RyuApp):
                         self.edge_realtime_bandfree[dpid][dsts] = self.edge_bandwidth[dpid][dsts] - bandload
 
         #monitor record csv file
-        csvtime = time.time()        
+        csvtime = time.time()
         if dpid == 1 and csvtime >= GOGO_TIME and csvtime <= GOGO_TIME + TOTAL_TIME:
             with open(self.csv_throughput_record_filepath, "a") as csv_throughput_record_file:
                 row = [csvtime]
                 for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
                     for csvportno in toswitchdict.values():
-                        if EXP_TYPE == "routing":
+                        if "routing" in EXP_TYPE:
                             if csvportno == 1:
                                 row.append(self.moniter_record["rx_curr"][csvsrcid][csvportno])
                                 row.append(self.moniter_record["tx_curr"][csvsrcid][csvportno])
@@ -1227,4 +1227,4 @@ class SimpleSwitch13(app_manager.RyuApp):
                         ev.msg.datapath.id, stat.port_no,
                         stat.rx_packets, stat.rx_bytes, self.moniter_record["rx_curr"][dpid][portno],
                         stat.tx_packets, stat.tx_bytes, self.moniter_record["tx_curr"][dpid][portno],
-                        latency, bandfree, bandload, bar)        
+                        latency, bandfree, bandload, bar)
