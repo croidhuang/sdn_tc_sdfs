@@ -43,37 +43,26 @@ BETWEEN_HISTORY_EXTRA_TIME = 5
 other_time = 5
 
 
-timestring = "2022-08-14 21:08:00" #custom
-structtime = time.strptime(timestring, "%Y-%m-%d %H:%M:%S")
-timestamp = float(time.mktime(structtime))
-
 #iter
-if timestamp - time.time() > 0:
-    ROUTING_TYPE = "bellman-ford"    #"algo",       "sp_sortC",                 "bellman-ford"
-    SCHEDULER_TYPE = False   #False,        "MAX",                      "min",          "random",   "algo"
-    EXP_TYPE =  "square_routing"    #"routing",    "scheduling_routing",                     "scheduling"
-    DYNBW_TYPE = "est_avg"  #"est_avg",    "port"
+username='croid'
+homedir = os.path.expanduser('~'+username)
+try:
+    exp_iter = json.load(open(homedir+"/exp_iter.txt"))
+except:
+    print('change config username')
 
-else:
-    username='croid'
-    homedir = os.path.expanduser('~'+username)
-    try:
-        exp_iter = json.load(open(homedir+"/exp_iter.txt"))
-    except:
-        print('change config username')
+ROUTING_TYPE = exp_iter['ROUTING_TYPE']    #"algo",       "sp_sortC",                 "bellman-ford"
+SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']   #False,        "MAX",                      "min",          "random",   "algo"
+EXP_TYPE =  exp_iter['EXP_TYPE']   #"routing",    "scheduling_routing",                     "scheduling"
+DYNBW_TYPE = exp_iter['DYNBW_TYPE']  #"est_avg",    "port"
 
-    ROUTING_TYPE = exp_iter['ROUTING_TYPE']    #"algo",       "sp_sortC",                 "bellman-ford"
-    SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']   #False,        "MAX",                      "min",          "random",   "algo"
-    EXP_TYPE =  exp_iter['EXP_TYPE']   #"routing",    "scheduling_routing",                     "scheduling"
-    DYNBW_TYPE = exp_iter['DYNBW_TYPE']  #"est_avg",    "port"
-
-    timestring = exp_iter['timestring'] #custom
+timestring = exp_iter['timestring'] #custom
 
 immediate_start = time.time()+ READPKT_TIME + RYUSTART_TIME + BETWEEN_HISTORY_EXTRA_TIME + other_time
 GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
 #unit is second
-TOTAL_TIME = 4*60 #custom
+TOTAL_TIME = 1*60 #custom
 
 #unit is second, monitor period, controller get budget and scheduler distribute
 MONITOR_PERIOD = 1 #custom
@@ -365,6 +354,7 @@ def int_round(num,hold):
 #custom
 #gen graph
 if EXP_TYPE == "scheduling_routing":
+    print("scheduling_routing")
 
     topo_h = 14
     topo_n = 9
@@ -548,6 +538,7 @@ if EXP_TYPE == "scheduling_routing":
 
 
 elif EXP_TYPE == "scheduling":
+    print("scheduling")
 
     topo_h = 14
     topo_n = 9
@@ -637,7 +628,8 @@ elif EXP_TYPE == "scheduling":
 
 #custom
 #gen graph
-if EXP_TYPE == "routing":
+elif EXP_TYPE == "routing":
+    print("routing")
 
     topo_h = len(topo_SLICENDICT)
     topo_n = len(topo_SLICENDICT)
@@ -667,7 +659,10 @@ if EXP_TYPE == "routing":
             other_connect_v_range = random.randrange(int(edge_min_connect-1),int(topo_n/2))
         except:
             other_connect_v_range = 1
-        other_connect_v_list = random.sample(set(choice_node_list), other_connect_v_range)
+        try:
+            other_connect_v_list = random.sample(set(choice_node_list), other_connect_v_range)
+        except:
+            other_connect_v_list = choice_node_list
 
         # random add edge u>v only (u, v) no (v, u)
         for v in nodelist:
@@ -881,7 +876,8 @@ if EXP_TYPE == "routing":
 
 #custom
 #gen graph
-if EXP_TYPE == "square_routing":
+elif EXP_TYPE == "square_routing":
+    print("square_routing")
 
     topo_h = 4
     topo_n = 4
@@ -889,7 +885,7 @@ if EXP_TYPE == "square_routing":
 
     #exp var ratio
     edge_min_connect = 3 #custom at least 1 connect
-    python_multiprocess = 4*3
+    python_multiprocess = 2
     historytraffic_send_ratio = python_multiprocess/(topo_e*len(topo_SLICENDICT)) #custom
     historytraffic_scale = 0.8 #custom
     edge_bandwidth_scale = 0.8 #custom
@@ -1025,10 +1021,10 @@ if EXP_TYPE == "square_routing":
             check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
 
-    if print_ctrl == True:
-        pprint.pprint(HISTORYTRAFFIC)
-        print(sum_HISTORYTRAFFIC)
-        print(cnt_HISTORYTRAFFIC)
+    ###if print_ctrl == True:
+    pprint.pprint(HISTORYTRAFFIC)
+    print(sum_HISTORYTRAFFIC)
+    print(cnt_HISTORYTRAFFIC)
 
     EXTRATRAFFIC = copy.deepcopy(HISTORYTRAFFIC)
     for i, i_dict in EXTRATRAFFIC.items():
