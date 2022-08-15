@@ -80,14 +80,32 @@ def host_traffic_gen(hostid, dict_ctrl):
                         pkt = Ether(src = num_to_hostmac(srcid), dst = num_to_hostmac(dstid))/   \
                             IP(src = num_to_hostipv4(srcid), dst = num_to_hostipv4(dstid))/    \
                             UDP(sport = L4sport,dport = L4sport)
-                        if length > 1500:
+
+                        if length > int(1500*1.5):
                             payload = (1500-len(pkt))
+                            length = length - 1500
+                            #per1500
+                            data = payload_gen(payload)
+                            pkt = pkt/data
+                            isd_dict[i][(srcid,dstid)].append(pkt)
+
+                        elif length > len(pkt):
+                            payload = int((length-len(pkt)*2)/2)
+
+                            #splite 750*2
+                            data1 = payload_gen(payload)
+                            data2 = payload_gen(payload)
+                            pkt1 = pkt/data1
+                            pkt2 = pkt/data2
+                            isd_dict[i][(srcid,dstid)].append(pkt1)
+                            isd_dict[i][(srcid,dstid)].append(pkt2)
+                            length = -1
                         else:
-                            payload = length-len(pkt)
-                        length = length - 1500
-                        data = payload_gen(payload)
-                        pkt = pkt/data
-                        isd_dict[i][(srcid,dstid)].append(pkt)
+                            #header only
+                            isd_dict[i][(srcid,dstid)].append(pkt)
+                            length = length - 1500
+
+
 
     if dict_ctrl == "extra" or dict_ctrl == "both":
         for i,slicedict in EXTRATRAFFIC.items():
@@ -106,14 +124,30 @@ def host_traffic_gen(hostid, dict_ctrl):
                         pkt = Ether(src = num_to_hostmac(srcid), dst = num_to_hostmac(dstid))/   \
                             IP(src = num_to_hostipv4(srcid), dst = num_to_hostipv4(dstid))/    \
                             UDP(sport = L4sport,dport = L4sport)
-                        if length > 1500:
+
+                        if length > int(1500*1.5):
                             payload = (1500-len(pkt))
+                            length = length - 1500
+                            #per1500
+                            data = payload_gen(payload)
+                            pkt = pkt/data
+                            isd_dict[i][(srcid,dstid)].append(pkt)
+
+                        elif length > len(pkt):
+                            payload = int((length-len(pkt)*2)/2)
+
+                            #splite 750*2
+                            data1 = payload_gen(payload)
+                            data2 = payload_gen(payload)
+                            pkt1 = pkt/data1
+                            pkt2 = pkt/data2
+                            isd_dict[i][(srcid,dstid)].append(pkt1)
+                            isd_dict[i][(srcid,dstid)].append(pkt2)
+                            length = -1
                         else:
-                            payload = length-len(pkt)
-                        length = length - 1500
-                        data = payload_gen(payload)
-                        pkt = pkt/data
-                        isd_dict[i][(srcid,dstid)].append(pkt)
+                            #header only
+                            isd_dict[i][(srcid,dstid)].append(pkt)
+                            length = length - 1500
 
     if gen_ctrl == False:
         return None
@@ -138,27 +172,29 @@ def sniff_flow(hostid):
 ###sendpfast(flow[i][(srcid,dstid)],loop = 10,iface = myinterface,file_cache = True)
 """
 def send_flow(i,srcid,dstid,timestamp):
-    print(f"client {str(hostid)}:start")
+    
+    strpkt=''
+    for pkt in flow[i][(srcid,dstid)]:
+        strpkt=strpkt+str(len(pkt))+'_'
+    print(f"client {str(hostid)}:start\t{strpkt}")
     myinterface = "h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface = myinterface)
     while (timestamp := time.time()) < GOGO_TIME:
         pass
-    sendp(flow[i][(srcid,dstid)],inter = INNTER_ARRIVAL_TIME[i],count = NUM_PKT[i],iface = myinterface,verbose = False,socket = myL2socket)
-
-    print(str("client "+str(srcid)+"-"+str(dstid)+" type"+i+":done \t"+str(timestamp-GOGO_TIME)+"\t"+str(time.time()-timestamp)+" s"))
+    sendp(flow[i][(srcid,dstid)],inter = INNTER_ARRIVAL_TIME[i],count = NUM_PKT[i],iface = myinterface,verbose = False, socket = myL2socket,realtime=False,return_packets=False)
 
 def pre_send_history_flow(i,srcid,dstid,timestamp):
     print(f"client {str(hostid)}:prehistorystart")
     myinterface = "h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface = myinterface)
-    sendp(history_flow[i][(srcid,dstid)],count = len(history_flow[i][(srcid,dstid)]),iface = myinterface,verbose = False,socket = myL2socket)
+    sendp(history_flow[i][(srcid,dstid)],count = 1,iface = myinterface,verbose = False,socket = myL2socket)
     print(str("client"+ str(hostid)+":prehistorydone "+str(time.time()-timestamp)+ "s"))
 
 def pre_send_extra_flow(i,srcid,dstid,timestamp):
     print(f"client {str(hostid)}:preextrastart")
     myinterface = "h"+str(hostid)+"-eth0"
     myL2socket = conf.L2socket(iface = myinterface)
-    sendp(extra_flow[i][(srcid,dstid)],count = len(extra_flow[i][(srcid,dstid)]),iface = myinterface,verbose = False,socket = myL2socket)
+    sendp(extra_flow[i][(srcid,dstid)],count = 1,iface = myinterface,verbose = False,socket = myL2socket)
     print(str("client"+ str(hostid)+":preextradone "+str(time.time()-timestamp)+ "s"))
 
 
