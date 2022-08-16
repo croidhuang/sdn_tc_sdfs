@@ -62,7 +62,7 @@ immediate_start = time.time()+ READPKT_TIME + RYUSTART_TIME + BETWEEN_HISTORY_EX
 GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
 #unit is second
-TOTAL_TIME = 1*60 #custom
+TOTAL_TIME = 4*60 #custom
 
 #unit is second, monitor period, controller get budget and scheduler distribute
 MONITOR_PERIOD = 1 #custom
@@ -885,7 +885,7 @@ elif EXP_TYPE == "square_routing":
 
     #exp var ratio
     edge_min_connect = 3 #custom at least 1 connect
-    python_multiprocess = 2
+    python_multiprocess = 4*3
     historytraffic_send_ratio = python_multiprocess/(topo_e*len(topo_SLICENDICT)) #custom
     historytraffic_scale = 0.8 #custom
     edge_bandwidth_scale = 0.8 #custom
@@ -962,7 +962,7 @@ elif EXP_TYPE == "square_routing":
     #MUST CHECK you want avg or median
 
     #### control result here ###
-    ONE_PKT_SIZE[1] = ONE_PKT_SIZE[1] * 100
+    ONE_PKT_SIZE[1] = ONE_PKT_SIZE[1] * 77
     #### control result here ###
 
     """
@@ -1021,10 +1021,10 @@ elif EXP_TYPE == "square_routing":
             check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
 
-    ###if print_ctrl == True:
-    pprint.pprint(HISTORYTRAFFIC)
-    print(sum_HISTORYTRAFFIC)
-    print(cnt_HISTORYTRAFFIC)
+    if print_ctrl == True:
+        pprint.pprint(HISTORYTRAFFIC)
+        print(sum_HISTORYTRAFFIC)
+        print(cnt_HISTORYTRAFFIC)
 
     EXTRATRAFFIC = copy.deepcopy(HISTORYTRAFFIC)
     for i, i_dict in EXTRATRAFFIC.items():
