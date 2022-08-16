@@ -3,17 +3,21 @@ from subprocess import Popen
 import json
 import os
 
-a=["sp_sortC",       "bellman-ford","algo",]
-b=[False, "MAX",]
-c=["square_routing","routing", ]
-d=["est_avg",    "port",]
+a=["sp_sortC",]
+# "algo","sp_sortC","bellman-ford"
+b=[False,]
+# "MAX",
+c=["square_routing",]
+#
+d=["est_avg",   ]
+# "port",
 
 
 for aa in a:
     for bb in b:
         for cc in c:
             for dd in d:
-                for i in range(3):
+                for i in range(1):
                     exp_iter={}
                     exp_iter['ROUTING_TYPE'] = aa
                     exp_iter['SCHEDULER_TYPE'] = bb
