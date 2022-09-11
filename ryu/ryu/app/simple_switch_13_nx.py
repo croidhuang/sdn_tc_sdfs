@@ -94,13 +94,13 @@ class SimpleSwitch13(app_manager.RyuApp):
         #flow table entry timeout
         self.hard_timeout = ryu_scheduler.scheduler_hard_timeout(0,0)
         #["unknown"] = unknown class
-        self.hard_timeout["unknown"] = 1
+        self.hard_timeout["unknown"] = 0
 
         #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
         self.SliceDraw_ctrl       = True
         self.EstDraw_ctrl         = False
-        self.ClassifierPrint_ctrl = False
+        self.ClassifierPrint_ctrl = True
         self.ScheudulerPrint_ctrl = False
         self.ActionPrint_ctrl     = False
         self.MonitorPrint_ctrl    = False
@@ -192,6 +192,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     else:
                         row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
                         row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
+            
             writer = csv.writer(csv_throughput_record_file)
             writer.writerow(row)
             row = []
@@ -200,17 +201,26 @@ class SimpleSwitch13(app_manager.RyuApp):
             first_col = ord('B')
             first_row = 3
             csv_col_i = 0
+            sum_list=[]
             for csvsrcid,toswitchdict in self.SwitchOutportDict.items():
                 for csvportno in toswitchdict.values():
                     if "routing" in EXP_TYPE:
                         if csvportno == 1:
                             row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
+                            sum_list.append(chr(first_col+csv_col_i)+str(first_row-1))
                             row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
-                            csv_col_i += 2
+                            csv_col_i += 2                            
                     else:
                         row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
                         row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
                         csv_col_i += 2
+            sum_row=''
+            for r in sum_list:
+                sum_row += str(r)                
+                if r != sum_list[-1]:
+                    sum_row += '+'    
+            sum_row = '=('+sum_row+')/$A$2'
+            row.append(sum_row)
             writer = csv.writer(csv_throughput_record_file)
             writer.writerow(row)
             row = []
@@ -549,12 +559,14 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+        hard_timeout = 0
         self.add_flow(datapath = datapath,
                       priority = 0,
                       match = match,
-                      actions = actions)
+                      actions = actions,
+                      hard_timeout=hard_timeout)
 
-    def add_flow(self, datapath, priority, match, actions, *buffer_id):
+    def add_flow(self, datapath, priority, match, actions, hard_timeout, *buffer_id):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
@@ -565,12 +577,16 @@ class SimpleSwitch13(app_manager.RyuApp):
                                     priority = priority,
                                     buffer_id = buffer_id,
                                     match = match,
-                                    instructions = inst)
+                                    instructions = inst,
+                                    hard_timeout = hard_timeout
+                                    )
         else:
             mod = parser.OFPFlowMod(datapath = datapath,
                                     priority = priority,
                                     match = match,
-                                    instructions = inst)
+                                    instructions = inst,
+                                    hard_timeout = hard_timeout
+                                    )
         datapath.send_msg(mod)
 
     def _send_package(self, msg, datapath, in_port, actions):
@@ -720,7 +736,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         #need L3 L4 to classifier, if not, will valueerror
         L3_ctrl = False
         L4_ctrl = False
-        ICMP_ctrl = True
+        ICMP_ctrl = False
 
         try:
             id_eth = pkt.get_protocols(ethernet.ethernet)[0]
@@ -793,10 +809,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 id_udp = pkt.get_protocols(udp.udp)[0]
                 udp_src = id_udp.src_port
                 udp_dst = id_udp.dst_port
-                #for scheduler
-                src_port = udp_src
-                dst_port = udp_dst
-                #for classifier
+                #for schedulerICMP_ctrl
                 L4_ctrl = True
                 break
             except:
@@ -804,6 +817,17 @@ class SimpleSwitch13(app_manager.RyuApp):
                 udp_dst = 0
                 src_port = udp_src
                 dst_port = udp_dst
+            break
+
+        while ICMP_ctrl == False:
+            try:
+                id_icmp = pkt.get_protocols(icmp.icmp)[0]
+                icmpv4_type = id_icmp.type
+                ICMP_ctrl = True
+                break
+            except:
+                ICMP_ctrl = False
+                pass
             break
 
         self.packet_count += 1
@@ -882,7 +906,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         #classifier
         class_result = "unknown"
-        if L3_ctrl == True and L4_ctrl == True and ICMP_ctrl == True:
+        if L3_ctrl == True and L4_ctrl == True and ICMP_ctrl == False:
             try:
                 #for classifier
                 if self.Classifier_ctrl == True:
@@ -894,17 +918,14 @@ class SimpleSwitch13(app_manager.RyuApp):
                 else:
                     try:
                         if udp_src:
-                            class_result = int(L4port_to_clienttraffictype(udp_src))
+                            class_result = L4port_to_clienttraffictype(udp_dst)
                         elif tcp_src:
-                            class_result = int(L4port_to_clienttraffictype(tcp_src))
-                        else:
-                            print("GG: no L4 port")
-                            class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+                            class_result = L4port_to_clienttraffictype(tcp_dst)
                     except:
-                        print("GG: not gen packet")
-                        class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+                        #print("unknown class _ctrl")
+                        class_result = "unknown"
             except:
-                print("unknown class")
+                #print("unknown class _ctrl")
                 class_result = "unknown"
 
             #for scheduler
@@ -915,7 +936,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             try:
                 self.slice_class_count[class_result][src_h][dst_h] += 1
             except:
-                print(f"GG: unknown L3 switch {src_h}-{dst_h}")
+                print(f"GG: {class_result} L3 switch {src_h}-{dst_h}")
                 pass
 
             if self.ClassifierPrint_ctrl == True:
@@ -925,51 +946,37 @@ class SimpleSwitch13(app_manager.RyuApp):
         #avoid mistake for next time classifier
         L3_ctrl = False
         L4_ctrl = False
-        ICMP_ctrl = True
+        ICMP_ctrl = False
 
 
 
         #mapping dict_to_port dst src
         #flow table
         if class_result == "unknown":
+            hard_timeout = self.hard_timeout[class_result]
             class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
             if switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
                 #out_port
                 out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
-                out_port = self._out_port_group(out_port = out_port, class_result = "unknown", switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
+                out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
                 if self.ActionPrint_ctrl == True:
-                    self.logger.info(f"ping dst ip    s{switchid:<2}(out = {out_port:>2})")
-                #match
-                if self.FlowMatch_ctrl == True:
-                    if tcp_dst:
-                        match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
-                                                                ipv4_dst = ipv4_dst,
-                                                                ip_proto = ip_proto,
-                                                                tcp_dst = tcp_dst)
-                    elif udp_dst:
-                        match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
-                                                                ipv4_dst = ipv4_dst,
-                                                                ip_proto = ip_proto,
-                                                                udp_dst = udp_dst)
-                    else:
-                        match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
-                                                                ipv4_dst = ipv4_dst)
-                else:
-                    match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
-                                                            ipv4_dst = ipv4_dst)
-
+                    self.logger.info(f"unknown iam s{switchid:<2}(out = {out_port:>2}) dst {ipv4_dst}")
+                match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800, ipv4_dst = ipv4_dst)
                 actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
                 self.add_flow(datapath = datapath,
-                            priority = 20,
+                            priority = 10,
                             match = match,
-                            actions = actions)
+                            actions = actions,
+                            hard_timeout = hard_timeout
+                            )
                 self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
+            hard_timeout = self.hard_timeout[class_result]
             #out_port
             out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
             out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = ipv4_dst, layerid = "ipv4")
             if self.ActionPrint_ctrl == True:
-                self.logger.info(f"dst ip    s{switchid:<2}(out = {out_port:>2})")
+                self.logger.info(f"class{class_result} iam s{switchid:<2}(out = {out_port:>2}) dst {ipv4_dst}")
             #match
             if self.FlowMatch_ctrl == True:
                 if tcp_dst:
@@ -991,21 +998,24 @@ class SimpleSwitch13(app_manager.RyuApp):
 
             actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
             self.add_flow(datapath = datapath,
-                          priority = 10,
+                          priority = 0,
                           match = match,
-                          actions = actions)
+                          actions = actions,
+                          hard_timeout = hard_timeout)
             self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["mac"][class_result] and eth_dst in self.outport_lish["mac"][class_result][switchid]:
+            hard_timeout = self.hard_timeout[class_result]
             out_port = self.outport_lish["mac"][class_result][switchid][eth_dst]
             out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = eth_dst, layerid = "mac")
-            if self.ActionPrint_ctrl == True:
-                self.logger.info(f"dst mac    s{switchid:<2}(out = {out_port:>2})")
+            if self.ActionPrint_ctrl == True:                
+                self.logger.info(f"class{class_result} iam s{switchid:<2}(out = {out_port:>2}) dst {eth_dst}")
             match = datapath.ofproto_parser.OFPMatch(eth_dst = eth_dst)
             actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
             self.add_flow(datapath = datapath,
-                          priority = 30,
+                          priority = 0,
                           match = match,
-                          actions = actions)
+                          actions = actions,
+                          hard_timeout = hard_timeout)
             self._send_package(msg, datapath, in_port, actions)
 
 
