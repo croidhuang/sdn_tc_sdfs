@@ -22,8 +22,9 @@ import os
 import sys
 sys.path.insert(1, "./")
 from exp_config.exp_config import \
-EXP_TYPE,     \
+EXP_TYPE,TOTAL_TIME,     \
 MININET_BW,     \
+RYUSTART_TIME,     \
 topo_G,     \
 topo_GNode0_alignto_mininetSwitchNum
 
@@ -142,11 +143,13 @@ def myNetwork():
 
     #switch link switch
     for v1,v2 in topo_mininet.edges():
-        net.addLink(SwitchDict[v1], SwitchDict[v2], cls = TCLink, bw = bw_mininet[(v1,v2)])
+        #net.addLink(SwitchDict[v1], SwitchDict[v2])
+        net.addLink(SwitchDict[v1], SwitchDict[v2], cls = TCLink , bw = bw_mininet[(v1,v2)])
 
     #net.get
     for i in SwitchDict:
         SwitchDict[i] = net.get(SwitchNum[i])
+
 
     for i in HostDict:
         HostDict[i] = net.get(HostNum[i])
@@ -175,9 +178,10 @@ def myNetwork():
     info("\n*** Start Ryu Controller\n")
     Popen(["python3","-u",'copy_file.py'],cwd='pktgen')
     Popen(["xterm","-e", "ryu-manager ./ryu/ryu/app/simple_switch_13_nx.py"])
+    #Popen(["wireshark"])    
     #wait Ryu start
-    time.sleep(10)
-
+    time.sleep(RYUSTART_TIME)
+    
 
     """
     ###WARNING  must start controller
@@ -200,7 +204,7 @@ def myNetwork():
                 HostDict_i.cmdPrint("python3 pktreplay/cs/client"+str(i)+".py")
             else:
                 HostDict_i.cmdPrint("python3 pktreplay/cs/server"+str(i)+".py")
-        elif EXP_TYPE == "routing" or "test":
+        elif EXP_TYPE == "routing" or "fake":
             HostDict_i.cmdPrint("python3 pktgen/cs/client"+str(i)+".py")
 
 
@@ -211,10 +215,6 @@ def myNetwork():
         ClientDict[i].start()
     for i in HostDict:
         ClientDict[i].join()
-
-
-
-
 
     CLI(net)
 
