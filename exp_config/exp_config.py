@@ -315,7 +315,7 @@ def __MININET_BW (EDGE_BANDWIDTH_G):
     return MININET_BW
 
    
-def __gen_scaledict(pair_list, traffic_cnt, lowestscale, shuffle):
+def __gen_scaled_dict(pair_list, traffic_cnt, lowestscale, shuffle):
     traffic_len = len(traffic_cnt)
     if traffic_len == 0:
         traffic_len = 1
@@ -327,11 +327,11 @@ def __gen_scaledict(pair_list, traffic_cnt, lowestscale, shuffle):
     if shuffle == True:
         random.shuffle(traffic_cnt)
 
-    scaledict={}
+    scaled_dict={}
     for ri, r in enumerate(pair_list):
-        scaledict[r] = traffic_cnt[ri]
+        scaled_dict[r] = traffic_cnt[ri]
 
-    return scaledict
+    return scaled_dict
 
 def __SLICE_TRAFFIC_NORMALNUM(historytraffic_send_ratio, SLICE_TRAFFIC_NUM):
     slice_n = topo_e*len(topo_SLICENDICT)*historytraffic_send_ratio
@@ -801,7 +801,7 @@ elif EXP_TYPE == "routing":
             if e in choice_send_list:
                 pair_list.append(e)
                 traffic_cnt.append(0)
-            scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale,shuffle=True)
+        scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=True)
         #gen
         for p in pair_list:
             v1=p[0]
@@ -809,7 +809,7 @@ elif EXP_TYPE == "routing":
             HISTORYTRAFFIC[i][(v1, v2)] = int(\
                 ONE_PKT_SIZE[i] * \
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
-                scaledict[p])
+                scaled_dict[p])
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             cnt_HISTORYTRAFFIC += 1
@@ -854,12 +854,12 @@ elif EXP_TYPE == "routing":
         e = (v1, v2)
         pair_list.append(e)
         traffic_cnt.append(0)
-    scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale,shuffle=True)
+    scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, edge_bandwidth_scale, shuffle=True)
     #gen
     avg_b = sum_HISTORYTRAFFIC / edge_num
     for v1, v2 in EDGE_BANDWIDTH_G.edges():
         e = (v1, v2)
-        EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaledict[e])
+        EDGE_BANDWIDTH_G[v1][v2]['weight'] = int(avg_b*scaled_dict[e])
         EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']
 
     if print_ctrl == True:
@@ -1008,7 +1008,7 @@ elif EXP_TYPE == "square_routing":
             if e in choice_send_list:
                 pair_list.append(e)
                 traffic_cnt.append(0)
-            scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale,shuffle=False)
+        scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
         #gen
         for p in pair_list:
             v1=p[0]
@@ -1016,7 +1016,7 @@ elif EXP_TYPE == "square_routing":
             HISTORYTRAFFIC[i][(v1, v2)] = int(\
                 ONE_PKT_SIZE[i] * \
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
-                scaledict[p])
+                scaled_dict[p])
 
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
@@ -1062,7 +1062,7 @@ elif EXP_TYPE == "square_routing":
         e = (v1, v2)
         pair_list.append(e)
         traffic_cnt.append(0)
-    scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale,shuffle=True)
+    scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, edge_bandwidth_scale, shuffle=True)
     #gen
     avg_b = sum_HISTORYTRAFFIC / edge_num
 
@@ -1086,6 +1086,242 @@ elif EXP_TYPE == "square_routing":
     MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
 
 
+#custom
+#gen graph
+elif EXP_TYPE == "dymsquare_routing":
+    print("dymsquare_routing")
+
+    topo_h = 4
+    topo_n = 4
+    topo_e = (topo_n-1)*topo_n
+
+    #exp var ratio
+    edge_min_connect = 3 #custom at least 1 connect
+    python_multiprocess = 4*3 #custom at least 2
+    historytraffic_send_ratio = python_multiprocess/(topo_e*len(topo_SLICENDICT)) #custom
+    historytraffic_scale = 0.8 #custom
+    edge_bandwidth_scale = 0.8 #custom
+
+    topo_G = nx.Graph()
+    hostlist = [i for i in range(topo_h)]
+    nodelist = [i for i in range(topo_n)]
+
+    #random edgelist
+    edgedict = {(u, v):1 for u in nodelist for v in nodelist if u != v and ((u+1)%topo_n == v or (u-1)%topo_n == v)}
+    edgelist=[k for k, v in edgedict.items() if v != 0]
+
+    edgecountdict = copy.deepcopy(edgedict)
+    edge_num = 0
+    for k,v in edgecountdict.items():
+        n1=k[0]
+        n2=k[1]
+        if v != 0:
+            edge_num += 1
+            edgecountdict[(n1,n2)]=0
+            edgecountdict[(n2,n1)]=0
+
+    topo_G.add_nodes_from(nodelist)
+    topo_G.add_edges_from(edgelist)
+
+    #networkx no host, so add host label
+    for s in topo_G.nodes():
+        topo_G.nodes[s]['host'] = []
+    for h in hostlist:
+        try:
+            topo_G.nodes[h]['host'].append(hostlist[h])
+        except:
+            print("gg: host > switch")
+
+    #hop so weight is 1
+    for u, v in topo_G.edges():
+        topo_G[u][v]['weight'] = 1
+
+    ####################check####################
+    SLICE_TRAFFIC_MAP = {
+        #0chat #1email #2file #3stream #4p2p #5voip #6browser
+        0: 0, #0chat
+        1: 1, #1email
+        2: 5, #5voip
+        3: 6, #6browser
+        4: 3, #3stream
+        5: 2, #2file
+        6: 4, #4p2p
+    }
+    ####################check####################
+
+    ####################check####################
+    SLICE_TRAFFIC_NUM = {
+        #0chat #1email #2file #3stream #4p2p #5voip #6browser
+        0: 6, #0chat
+        1: 6, #1email
+        2: 0, #5voip
+        3: 0, #6browser
+        4: 0, #3stream
+        5: 0, #2file
+        6: 0, #4p2p
+    }
+    ####################check####################
+
+    SLICE_TRAFFIC_NORMALNUM = __SLICE_TRAFFIC_NORMALNUM(historytraffic_send_ratio, SLICE_TRAFFIC_NUM)
+
+
+    #MUST CHECK you want avg or median
+    INNTER_ARRIVAL_TIME = __INNTER_ARRIVAL_TIME(orig_AVG_INNTER_ARRIVAL_TIME, SLICE_TRAFFIC_MAP)
+    #MUST CHECK you want avg or median
+
+    #MUST CHECK you want avg or median
+    ONE_PKT_SIZE = __ONE_PKT_SIZE(orig_AVG_ONE_PKT_SIZE, SLICE_TRAFFIC_MAP)
+    #MUST CHECK you want avg or median
+
+    #### control result here ###
+    ONE_PKT_SIZE[1] = ONE_PKT_SIZE[1] * 1 ###custom
+    #### control result here ###
+
+    """
+    cal total packets
+    """
+
+    #fit interval_lowlimit
+    if interval_lowlimit_ctrl == True:
+        INNTER_ARRIVAL_TIME = __interval_lowlimit(INNTER_ARRIVAL_TIME)
+
+    NUM_PKT = __NUM_PKT (TOTAL_TIME, INNTER_ARRIVAL_TIME)
+
+    """
+    traffic generate
+    """
+
+    HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
+
+    #directed, not edge, host to host
+    for i, i_dict in HISTORYTRAFFIC.items():
+        HISTORYTRAFFIC[i][(0, 2)] = 0
+        HISTORYTRAFFIC[i][(2, 0)] = 0
+        HISTORYTRAFFIC[i][(1, 3)] = 0
+        HISTORYTRAFFIC[i][(3, 1)] = 0
+        HISTORYTRAFFIC[i][(2, 3)] = 0
+        HISTORYTRAFFIC[i][(3, 2)] = 0
+
+    #gen and sum traffic
+    sum_HISTORYTRAFFIC = 0
+    cnt_HISTORYTRAFFIC = 0
+    check_TRAFFIC=0
+    for i, i_dict in HISTORYTRAFFIC.items():
+        pair_list=[]
+        traffic_cnt=[]
+        # send ratio
+        send_list=[e for e in i_dict.keys()]
+        if len(send_list) >= SLICE_TRAFFIC_NORMALNUM[i]:
+            choice_send_list = random.sample(send_list, SLICE_TRAFFIC_NORMALNUM[i])
+        else:
+            choice_send_list = send_list
+        #dict
+        for e in i_dict.keys():
+            if e in choice_send_list:
+                pair_list.append(e)
+                traffic_cnt.append(0)
+        scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
+        #gen
+        for p in pair_list:
+            v1=p[0]
+            v2=p[1]            
+            HISTORYTRAFFIC[i][(v1, v2)] = int(\
+                ONE_PKT_SIZE[i] * \
+                float(1/INNTER_ARRIVAL_TIME[i]) * \
+                scaled_dict[p])
+
+            sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+            check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
+            cnt_HISTORYTRAFFIC += 1
+
+    if print_ctrl == True:
+        pprint.pprint(HISTORYTRAFFIC)
+        print(sum_HISTORYTRAFFIC)
+        print(cnt_HISTORYTRAFFIC)
+
+    EXTRATRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
+    for i, i_dict in EXTRATRAFFIC.items():
+        EXTRATRAFFIC[i][(0, 2)] = 0
+        EXTRATRAFFIC[i][(2, 0)] = 0
+        EXTRATRAFFIC[i][(1, 2)] = 0
+        EXTRATRAFFIC[i][(2, 1)] = 0
+        EXTRATRAFFIC[i][(2, 3)] = 0
+        EXTRATRAFFIC[i][(3, 2)] = 0
+
+    for i, i_dict in EXTRATRAFFIC.items():
+        pair_list=[]
+        traffic_cnt=[]
+        # send ratio
+        send_list=[e for e in i_dict.keys()]
+        choice_send_list = send_list
+        #dict
+        for e in i_dict.keys():
+            if e in choice_send_list:
+                pair_list.append(e)
+                traffic_cnt.append(0)
+        scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
+        #gen
+        for p in pair_list:
+            v1=p[0]
+            v2=p[1]    
+            EXTRATRAFFIC[i][(v1, v2)] = int(\
+                ONE_PKT_SIZE[i] * \
+                float(1/INNTER_ARRIVAL_TIME[i]) * \
+                scaled_dict[p])
+                
+            check_TRAFFIC += EXTRATRAFFIC[i][(v1, v2)]
+
+    check_TRAFFIC=check_TRAFFIC*TOTAL_TIME
+
+    """
+    cal bandwidth
+    """
+
+    if int(sum_HISTORYTRAFFIC/(2**20)) > hw_limit:
+        print(f"{sum_HISTORYTRAFFIC/(2**20)}>{hw_limit}")
+    else:
+        print(f"{sum_HISTORYTRAFFIC/(2**20)}<={hw_limit}")
+
+    if int(cnt_HISTORYTRAFFIC) > python_multiprocess:
+        print(f"{cnt_HISTORYTRAFFIC}>{python_multiprocess}")
+    else:
+        print(f"{cnt_HISTORYTRAFFIC}<={python_multiprocess}")
+
+
+    EDGE_BANDWIDTH_G = topo_G.copy()
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():
+        EDGE_BANDWIDTH_G[v1][v2]['weight'] = 0
+        EDGE_BANDWIDTH_G[v2][v1]['weight'] = EDGE_BANDWIDTH_G[v1][v2]['weight']
+
+    #shuffle bandwidth
+    pair_list=[]
+    traffic_cnt=[]
+    for v1, v2 in EDGE_BANDWIDTH_G.edges():
+        e = (v1, v2)
+        pair_list.append(e)
+        traffic_cnt.append(0)
+    scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, edge_bandwidth_scale, shuffle=True)
+    #gen
+    avg_b = sum_HISTORYTRAFFIC / edge_num
+
+    EDGE_BANDWIDTH_G[0][1]['weight'] = 12000
+    EDGE_BANDWIDTH_G[1][0]['weight'] = EDGE_BANDWIDTH_G[0][1]['weight']
+    EDGE_BANDWIDTH_G[0][3]['weight'] = 20000
+    EDGE_BANDWIDTH_G[3][0]['weight'] = EDGE_BANDWIDTH_G[0][3]['weight']
+    EDGE_BANDWIDTH_G[1][2]['weight'] = 2000
+    EDGE_BANDWIDTH_G[2][1]['weight'] = EDGE_BANDWIDTH_G[1][2]['weight']
+    EDGE_BANDWIDTH_G[2][3]['weight'] = 20000
+    EDGE_BANDWIDTH_G[3][2]['weight'] = EDGE_BANDWIDTH_G[2][3]['weight']
+
+    if print_ctrl == True:
+        for v1, v2 in EDGE_BANDWIDTH_G.edges():
+            print(f"({v1},{v2}):{EDGE_BANDWIDTH_G[v1][v2]['weight']}")
+
+    #aging
+    EST_SLICE_AGING = __EST_SLICE_AGING (TOTAL_TIME)
+    EST_SLICE_ONE_PKT =  __EST_SLICE_ONE_PKT (MONITOR_PERIOD, INNTER_ARRIVAL_TIME, ONE_PKT_SIZE)
+
+    MININET_BW = __MININET_BW (EDGE_BANDWIDTH_G)
 
 #custom
 #gen graph
@@ -1217,18 +1453,18 @@ elif EXP_TYPE == "two_routing":
             if e in choice_send_list:
                 pair_list.append(e)
                 traffic_cnt.append(0)
-            scaledict = __gen_scaledict(pair_list, traffic_cnt, historytraffic_scale,shuffle=False)
+        scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
         #gen
         for p in pair_list:
             v1=p[0]
             v2=p[1]            
-            HISTORYTRAFFIC[i][(v1, v2)] = int((i+1)*11111)
+            HISTORYTRAFFIC[i][(v1, v2)] = int((i+1))
 
             """
             int(\
                 ONE_PKT_SIZE[i] * \
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
-                scaledict[p])
+                scaled_dict[p])
             """
             sum_HISTORYTRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
             check_TRAFFIC += HISTORYTRAFFIC[i][(v1, v2)]
@@ -1274,7 +1510,7 @@ elif EXP_TYPE == "two_routing":
         e = (v1, v2)
         pair_list.append(e)
         traffic_cnt.append(0)
-    scaledict = __gen_scaledict(pair_list, traffic_cnt, edge_bandwidth_scale,shuffle=True)
+    scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, edge_bandwidth_scale, shuffle=True)
     #gen
     avg_b = sum_HISTORYTRAFFIC / edge_num
 
