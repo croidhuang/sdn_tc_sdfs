@@ -98,9 +98,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
-        self.SliceDraw_ctrl       = True
+        self.SliceDraw_ctrl       = False
         self.EstDraw_ctrl         = False
-        self.ClassifierPrint_ctrl = True
+        self.ClassifierPrint_ctrl = False
         self.ScheudulerPrint_ctrl = False
         self.ActionPrint_ctrl     = False
         self.MonitorPrint_ctrl    = False
@@ -117,7 +117,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         self.Monitor_ctrl      = True
         self.Latency_ctrl      = False
         self.BWaging_ctrl      = False
-        self.DynamicBW_ctrl    = DYNBW_TYPE #"port","est_avg"
+        self.DynamicBW_ctrl    = DYNBW_TYPE #"rt_port","est_avg"
 
 
         #topology info from mininet
@@ -654,7 +654,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 for pi in self.SliceDict.keys():
                     p_gen[pi] = self._src_to_dst_path(subG = copy.deepcopy(self.topo_slice_G[pi]), s = switchid, dsts = dsts)
                     bandfree[pi] = self._find_minBW(BW = self.slice_bandfree[pi], p_gen = p_gen[pi])
-            elif self.DynamicBW_ctrl == "port":
+            elif self.DynamicBW_ctrl == "rt_port":
                 bandfree = {i:0 for i in range(self.SliceNum)}
                 p_gen = {i:0 for i in range(self.SliceNum)}
                 for pi in self.SliceDict.keys():
@@ -695,7 +695,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     # aging flow in slice
                     self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[class_result]
                     self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
-        elif self.DynamicBW_ctrl == "port":
+        elif self.DynamicBW_ctrl == "rt_port":
             pass
         else:
             print("GG: self.DynamicBW_ctrl")
@@ -954,7 +954,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         #flow table
         if class_result == "unknown":
             hard_timeout = self.hard_timeout[class_result]
-            class_result = abs(int(hostipv4_to_num(ipv4_src) - 1)) % self.SliceNum
+            class_result = abs(int(hostipv4_to_num(ipv4_dst) - 1)) % self.SliceNum
             if switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
                 #out_port
                 out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
@@ -983,11 +983,13 @@ class SimpleSwitch13(app_manager.RyuApp):
                     match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
                                                              ipv4_dst = ipv4_dst,
                                                              ip_proto = ip_proto,
+                                                             tcp_src = tcp_src,
                                                              tcp_dst = tcp_dst)
                 elif udp_dst:
                     match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
                                                              ipv4_dst = ipv4_dst,
                                                              ip_proto = ip_proto,
+                                                             udp_src = udp_src,
                                                              udp_dst = udp_dst)
                 else:
                     match = datapath.ofproto_parser.OFPMatch(eth_type = 0x0800,
@@ -1175,7 +1177,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     self.moniter_record["prev_tx_bytes"][dpid][portno] = stat.tx_bytes
                     self.moniter_record["tx_curr"][dpid][portno] = tx_bytes
 
-                    if self.DynamicBW_ctrl == "port":
+                    if self.DynamicBW_ctrl == "rt_port":
                         dsts = self.mininetPortDict[dpid][stat.port_no]
                         bandload = self.moniter_record["rx_curr"][dpid][portno] + self.moniter_record["tx_curr"][dpid][portno]
                         self.edge_realtime_bandfree[dpid][dsts] = self.edge_bandwidth[dpid][dsts] - bandload
