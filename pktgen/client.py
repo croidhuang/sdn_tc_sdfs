@@ -42,7 +42,7 @@ hostid = int(hostid[start:end])
 
 random.seed(RANDOM_SEED_NUM)
 
-
+L4sport_list=[i for i in range(1025,65536)]
 
 #生成flow
 def host_traffic_gen(hostid, dict_ctrl):
@@ -56,53 +56,62 @@ def host_traffic_gen(hostid, dict_ctrl):
             for k, v in slicedict.items():
                 if v == 0:
                     continue
+                else:
+                    flow_user_total = int(v/(ONE_PKT_SIZE[i]/INNTER_ARRIVAL_TIME[i]))+1
 
                 srcid = G_to_M(k[0])
                 dstid = G_to_M(k[1])
 
                 if dstid == hostid:
                     gen_ctrl = True
-                    L4sport = clienttraffictype_to_L4port(i, hostid, dstid)
+                    L4dport = clienttraffictype_to_L4port(i, hostid, dstid)
                     """
                     scapy
                     """
                     """
                     #server
                     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.bind((num_to_hostipv4(dstid), L4sport))
+                    s.bind((num_to_hostipv4(dstid), L4dport))
                     """
 
-                    listenport_dict[(str(L4sport))] = 1
+                    listenport_dict[(str(L4dport))] = 1
 
                 if srcid == hostid:
                     gen_ctrl = True
-                    pkt_length = int(v*float(INNTER_ARRIVAL_TIME[i]/1))
-                    L4sport = clienttraffictype_to_L4port(i, hostid, dstid)
+                    for user_num in range(flow_user_total):
+                        isd_dict[i][(srcid, dstid)].append([])
+                        pkt_length = int(float(v/flow_user_total)*float(INNTER_ARRIVAL_TIME[i]/1))
+                        L4sport = random.choice(L4sport_list)
+                        L4sport_list.remove(L4sport)
+                        L4dport = clienttraffictype_to_L4port(i, hostid, dstid)
 
-                    """
-                    scapy
-                    """
-                    """
-                    #client
-                    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    s.connect((num_to_hostipv4(dstid), L4sport))
-                    """
+                        """
+                        scapy
+                        """
+                        """
+                        #client
+                        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        s.connect((num_to_hostipv4(dstid), L4dport))
+                        """                        
 
-                    pkt = Ether(src = num_to_hostmac(srcid), dst = num_to_hostmac(dstid))/   \
-                    IP(src = num_to_hostipv4(srcid), dst = num_to_hostipv4(dstid))/    \
-                    UDP(sport = L4sport, dport = L4sport)
+                        pkt = Ether(src = num_to_hostmac(srcid), dst = num_to_hostmac(dstid))/   \
+                        IP(src = num_to_hostipv4(srcid), dst = num_to_hostipv4(dstid))/    \
+                        UDP(sport = L4sport, dport = L4dport)
 
-                    pkt_total = int(pkt_length/1500)+1
-                    per_pkt_length = int(pkt_length / pkt_total)
-                    for pi in range(pkt_total):
-                        payload = payload_gen(per_pkt_length)
-                        addpkt = pkt / payload
-                        isd_dict[i][(srcid, dstid)].append(addpkt)
+                        pkt_total = int(pkt_length/1500)+1
+                        per_pkt_length = int(pkt_length / pkt_total)
+                        for pi in range(pkt_total):
+                            payload = payload_gen(per_pkt_length)
+                            addpkt = pkt / payload
+                            isd_dict[i][(srcid, dstid)][-1].append(addpkt)
 
         if gen_ctrl == False:
             return None, None, gen_ctrl
         else:
             return isd_dict, listenport_dict, gen_ctrl
+
+
+
 
     gen_ctrl = False
 
@@ -154,22 +163,22 @@ def sniff_flow(listen_port):
 """
 
 
-def send_flow(i, srcid, dstid, timestamp, flowtype_ctrl):
-   
+def send_flow(i, srcid, dstid, flowitem, timestamp, flowtype_ctrl, timeout):
+ 
     if flowtype_ctrl == "history":
-        flow = copy.deepcopy(history_flow)
+        flow = copy.deepcopy(flowitem)
     elif flowtype_ctrl == "extra":
-        flow = copy.deepcopy(extra_flow)
+        flow = copy.deepcopy(flowitem)
     elif flowtype_ctrl == "replay":
-        flow = copy.deepcopy(replay_flow)
-    
+        flow = copy.deepcopy(flowitem)
+
     strpkt=''
     pkt_length = 0
-    for pkt in flow[i][(srcid, dstid)]:
+    for pkt in flow:
         strpkt = strpkt+str(len(pkt))+'_'
         pkt_length += int(len(pkt))
     print(f"client {str(hostid)}:start\t{strpkt}")
-    
+
     """
     scapy
     """
@@ -179,14 +188,14 @@ def send_flow(i, srcid, dstid, timestamp, flowtype_ctrl):
 
     """
     iperf
-    """    
-    
-    dst_ip = flow[i][(srcid, dstid)][0][IP].dst    
-    dst_port = flow[i][(srcid, dstid)][0][UDP].dport
+    """
+
+    dst_ip = flow[0][IP].dst
+    dst_port = flow[0][UDP].dport
     if flowtype_ctrl == "history":
-        iperftime = 10
+        iperftime = timeout
     elif flowtype_ctrl == "extra":
-        iperftime = 10
+        iperftime = timeout
     elif flowtype_ctrl == "replay":
         iperftime = TOTAL_TIME
         while (timestamp := time.time()) < GOGO_TIME:
@@ -201,23 +210,22 @@ def send_flow(i, srcid, dstid, timestamp, flowtype_ctrl):
 def cnt_flow(timestamp, flow, flowtype_ctrl):
 
     if flowtype_ctrl == "history":
-        timeout = 10
+        timeout = 10 #custom
     elif flowtype_ctrl == "extra":
-        timeout = 10
+        timeout = 10 #custom
     elif flowtype_ctrl == "replay":
         timeout = GOGO_TIME-time.time()+TOTAL_TIME
 
     with ProcessPool() as pool:
         for i, slicedict in flow.items():
-            for e, v in slicedict.items():
-                srcid = e[0]
-                dstid = e[1]
-                if len(v) != 0:                    
-                    pool.schedule(send_flow, (i, srcid, dstid, timestamp, flowtype_ctrl), timeout = timeout)
+            for e, flowlist in slicedict.items():
+                if len(flowlist) != []:
+                    for flowitem in flowlist:
+                        srcid = e[0]
+                        dstid = e[1]
+                        pool.schedule(send_flow, (i, srcid, dstid, flowitem, timestamp, flowtype_ctrl, timeout), timeout = timeout)
 
-        print(listenport_dict)
-        for listen_port in listenport_dict.keys():            
-            dst_port = listen_port
+        for listen_port in listenport_dict.keys():
             pool.schedule(sniff_flow, (listen_port, ), timeout = timeout)
         pool.close()
         pool.join()
