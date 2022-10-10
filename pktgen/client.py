@@ -23,7 +23,7 @@ sys.path.insert(1, "./")
 from exp_config.exp_config import \
 SLICE_TRAFFIC_MAP, NUM_PKT,     \
 SCHEDULER_TYPE, EXP_TYPE, RANDOM_SEED_NUM,     \
-GOGO_TIME, TOTAL_TIME, READPKT_TIME, BETWEEN_HISTORY_EXTRA_TIME,     \
+GOGO_TIME, TOTAL_TIME, READPKT_TIME, HISTORY_PRESEND_TIME, EXTRA_PRESEND_TIME, BETWEEN_HISTORY_EXTRA_TIME,     \
 ONE_PKT_SIZE, INNTER_ARRIVAL_TIME,     \
 topo_G,     \
 topo_SLICENDICT,     \
@@ -92,7 +92,7 @@ def host_traffic_gen(hostid, dict_ctrl):
                         #client
                         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                         s.connect((num_to_hostipv4(dstid), L4dport))
-                        """                        
+                        """
 
                         pkt = Ether(src = num_to_hostmac(srcid), dst = num_to_hostmac(dstid))/   \
                         IP(src = num_to_hostipv4(srcid), dst = num_to_hostipv4(dstid))/    \
@@ -164,7 +164,7 @@ def sniff_flow(listen_port):
 
 
 def send_flow(i, srcid, dstid, flowitem, timestamp, flowtype_ctrl, timeout):
- 
+
     if flowtype_ctrl == "history":
         flow = copy.deepcopy(flowitem)
     elif flowtype_ctrl == "extra":
@@ -210,9 +210,9 @@ def send_flow(i, srcid, dstid, flowitem, timestamp, flowtype_ctrl, timeout):
 def cnt_flow(timestamp, flow, flowtype_ctrl):
 
     if flowtype_ctrl == "history":
-        timeout = 10 #custom
+        timeout = HISTORY_PRESEND_TIME
     elif flowtype_ctrl == "extra":
-        timeout = 10 #custom
+        timeout = EXTRA_PRESEND_TIME
     elif flowtype_ctrl == "replay":
         timeout = GOGO_TIME-time.time()+TOTAL_TIME
 
