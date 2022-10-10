@@ -50,20 +50,22 @@ random.seed(RANDOM_SEED_NUM)
 # timetosleep
 READPKT_TIME = 5
 RYUSTART_TIME = 15
+HISTORY_PRESEND_TIME = 10
+EXTRA_PRESEND_TIME = 10
 BETWEEN_HISTORY_EXTRA_TIME = 5
-other_time = 5
+other_time = 15
 
 
 
 #iter
-ROUTING_TYPE = exp_iter['ROUTING_TYPE']    
-SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']   
-EXP_TYPE =  exp_iter['EXP_TYPE']  
-DYNBW_TYPE = exp_iter['DYNBW_TYPE']  
+ROUTING_TYPE = exp_iter['ROUTING_TYPE']
+SCHEDULER_TYPE = exp_iter['SCHEDULER_TYPE']
+EXP_TYPE =  exp_iter['EXP_TYPE']
+DYNBW_TYPE = exp_iter['DYNBW_TYPE']
 
-timestring = exp_iter['timestring'] 
+timestring = exp_iter['timestring']
 
-immediate_start = time.time()+ READPKT_TIME + RYUSTART_TIME + BETWEEN_HISTORY_EXTRA_TIME + other_time
+immediate_start = time.time()+ READPKT_TIME + RYUSTART_TIME + HISTORY_PRESEND_TIME + EXTRA_PRESEND_TIME + BETWEEN_HISTORY_EXTRA_TIME + other_time
 GOGO_TIME = check_gogo_time(timestring,immediate_start)
 
 #unit is second
@@ -107,7 +109,6 @@ sata2_io = (3.0e+9)
 sata2_io = sata2_io/8/(2**20)
 
 hw_limit=min([mininet_cpu_py,network_card_io,sata2_io ])
-print(hw_limit)
 
 """
 traffic file
@@ -314,15 +315,15 @@ def __MININET_BW (EDGE_BANDWIDTH_G):
         print(MININET_BW)
     return MININET_BW
 
-   
+
 def __gen_scaled_dict(pair_list, traffic_cnt, lowestscale, shuffle):
     traffic_len = len(traffic_cnt)
     if traffic_len == 0:
         traffic_len = 1
-    traffic_ladder = (1-lowestscale)/ traffic_len
+    traffic_trapezoid = (1-lowestscale)/ traffic_len
 
     for ti in range(len(traffic_cnt)):
-        traffic_cnt[ti]=1-(traffic_ladder*ti)
+        traffic_cnt[ti] = 1-(traffic_trapezoid*ti)
 
     if shuffle == True:
         random.shuffle(traffic_cnt)
@@ -345,7 +346,7 @@ def __SLICE_TRAFFIC_NORMALNUM(historytraffic_send_ratio, SLICE_TRAFFIC_NUM):
     SLICE_TRAFFIC_NORMALNUM = {i:0 for i in topo_SLICENDICT.keys()}
     for k,v in SLICE_TRAFFIC_NORMALNUM.items():
         SLICE_TRAFFIC_NORMALNUM[k] = round((SLICE_TRAFFIC_NUM[k]/sum_slice)*slice_n)
-        
+
     return SLICE_TRAFFIC_NORMALNUM
 
 def int_round(num,hold):
@@ -496,7 +497,7 @@ if EXP_TYPE == "scheduling_routing":
     """
     cal bandwidth
     """
-    
+
     if int(sum_HISTORYTRAFFIC/(2**20)) > hw_limit:
         print(f"{sum_HISTORYTRAFFIC/(2**20)}>{hw_limit}")
     else:
@@ -896,7 +897,7 @@ elif EXP_TYPE == "square_routing":
 
     #random edgelist
     edgedict = {(u, v):1 for u in nodelist for v in nodelist if u != v and ((u+1)%topo_n == v or (u-1)%topo_n == v)}
-    edgelist=[k for k, v in edgedict.items() if v != 0]
+    edgelist = [k for k, v in edgedict.items() if v != 0]
 
     edgecountdict = copy.deepcopy(edgedict)
     edge_num = 0
@@ -1012,7 +1013,7 @@ elif EXP_TYPE == "square_routing":
         #gen
         for p in pair_list:
             v1=p[0]
-            v2=p[1]            
+            v2=p[1]
             HISTORYTRAFFIC[i][(v1, v2)] = int(\
                 ONE_PKT_SIZE[i] * \
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
@@ -1191,8 +1192,12 @@ elif EXP_TYPE == "dymsquare_routing":
     traffic generate
     """
 
-    HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
+    #gen and sum traffic
+    sum_HISTORYTRAFFIC = 0
+    cnt_HISTORYTRAFFIC = 0
+    check_TRAFFIC=0
 
+    HISTORYTRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
     #directed, not edge, host to host
     for i, i_dict in HISTORYTRAFFIC.items():
         HISTORYTRAFFIC[i][(0, 2)] = 0
@@ -1202,29 +1207,23 @@ elif EXP_TYPE == "dymsquare_routing":
         HISTORYTRAFFIC[i][(2, 3)] = 0
         HISTORYTRAFFIC[i][(3, 2)] = 0
 
-    #gen and sum traffic
-    sum_HISTORYTRAFFIC = 0
-    cnt_HISTORYTRAFFIC = 0
-    check_TRAFFIC=0
     for i, i_dict in HISTORYTRAFFIC.items():
-        pair_list=[]
-        traffic_cnt=[]
         # send ratio
-        send_list=[e for e in i_dict.keys()]
+        send_list = [e for e in i_dict.keys()]
         if len(send_list) >= SLICE_TRAFFIC_NORMALNUM[i]:
             choice_send_list = random.sample(send_list, SLICE_TRAFFIC_NORMALNUM[i])
         else:
             choice_send_list = send_list
         #dict
-        for e in i_dict.keys():
-            if e in choice_send_list:
-                pair_list.append(e)
-                traffic_cnt.append(0)
+        pair_list=[]
+        traffic_cnt=[]
+        pair_list = [e for e in i_dict.keys() if e in choice_send_list]
+        traffic_cnt = [0 for e in i_dict.keys() if e in choice_send_list]
         scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
         #gen
         for p in pair_list:
             v1=p[0]
-            v2=p[1]            
+            v2=p[1]
             HISTORYTRAFFIC[i][(v1, v2)] = int(\
                 ONE_PKT_SIZE[i] * \
                 float(1/INNTER_ARRIVAL_TIME[i]) * \
@@ -1241,36 +1240,35 @@ elif EXP_TYPE == "dymsquare_routing":
 
     EXTRATRAFFIC = {i:{} for i in topo_SLICENDICT.keys()}
     for i, i_dict in EXTRATRAFFIC.items():
-        EXTRATRAFFIC[i][(0, 2)] = 0
-        EXTRATRAFFIC[i][(2, 0)] = 0
-        EXTRATRAFFIC[i][(1, 2)] = 0
-        EXTRATRAFFIC[i][(2, 1)] = 0
-        EXTRATRAFFIC[i][(2, 3)] = 0
-        EXTRATRAFFIC[i][(3, 2)] = 0
+        EXTRATRAFFIC[0][(0, 2)] = 0
+        EXTRATRAFFIC[0][(2, 0)] = 0
+        EXTRATRAFFIC[0][(1, 2)] = 0
+        EXTRATRAFFIC[0][(2, 1)] = 0
+        EXTRATRAFFIC[0][(2, 3)] = 0
+        EXTRATRAFFIC[0][(3, 2)] = 0
 
     for i, i_dict in EXTRATRAFFIC.items():
-        pair_list=[]
-        traffic_cnt=[]
         # send ratio
         send_list=[e for e in i_dict.keys()]
         choice_send_list = send_list
         #dict
-        for e in i_dict.keys():
-            if e in choice_send_list:
-                pair_list.append(e)
-                traffic_cnt.append(0)
+        pair_list=[]
+        traffic_cnt=[]
+        pair_list = [e for e in i_dict.keys() if e in choice_send_list]
+        traffic_cnt = [0 for e in i_dict.keys() if e in choice_send_list]
         scaled_dict = __gen_scaled_dict(pair_list, traffic_cnt, historytraffic_scale, shuffle=False)
         #gen
         for p in pair_list:
             v1=p[0]
-            v2=p[1]    
+            v2=p[1]
             EXTRATRAFFIC[i][(v1, v2)] = int(\
-                ONE_PKT_SIZE[i] * \
-                float(1/INNTER_ARRIVAL_TIME[i]) * \
+                ONE_PKT_SIZE[1] * \
+                float(1/INNTER_ARRIVAL_TIME[1]) * \
                 scaled_dict[p])
-                
+
             check_TRAFFIC += EXTRATRAFFIC[i][(v1, v2)]
 
+    #all traffic per second gen done, cal to total time
     check_TRAFFIC=check_TRAFFIC*TOTAL_TIME
 
     """
@@ -1304,13 +1302,13 @@ elif EXP_TYPE == "dymsquare_routing":
     #gen
     avg_b = sum_HISTORYTRAFFIC / edge_num
 
-    EDGE_BANDWIDTH_G[0][1]['weight'] = 12000
+    EDGE_BANDWIDTH_G[0][1]['weight'] = 8000
     EDGE_BANDWIDTH_G[1][0]['weight'] = EDGE_BANDWIDTH_G[0][1]['weight']
-    EDGE_BANDWIDTH_G[0][3]['weight'] = 20000
+    EDGE_BANDWIDTH_G[0][3]['weight'] = 30000
     EDGE_BANDWIDTH_G[3][0]['weight'] = EDGE_BANDWIDTH_G[0][3]['weight']
     EDGE_BANDWIDTH_G[1][2]['weight'] = 2000
     EDGE_BANDWIDTH_G[2][1]['weight'] = EDGE_BANDWIDTH_G[1][2]['weight']
-    EDGE_BANDWIDTH_G[2][3]['weight'] = 20000
+    EDGE_BANDWIDTH_G[2][3]['weight'] = 30000
     EDGE_BANDWIDTH_G[3][2]['weight'] = EDGE_BANDWIDTH_G[2][3]['weight']
 
     if print_ctrl == True:
@@ -1457,7 +1455,7 @@ elif EXP_TYPE == "two_routing":
         #gen
         for p in pair_list:
             v1=p[0]
-            v2=p[1]            
+            v2=p[1]
             HISTORYTRAFFIC[i][(v1, v2)] = int((i+1))
 
             """
