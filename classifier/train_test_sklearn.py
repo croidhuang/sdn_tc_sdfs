@@ -157,9 +157,10 @@ def dataset_path(choice_dataset):
 trainpath, testpath, headerdict = dataset_path(choice_dataset)
 
 #choice_random每個pcap取幾個或取比例, 注意0是比例全部(1是1個非比例1), b255一個檔案10, 000, 全部11, 000, 000記憶體可能GG
-#minqty是最低取的數量, replace是數量不足能不能重複取
-choice_random = 0.004
-minqty_threshold = 100
+#min_qty是最低取的數量, replace是數量不足能不能重複取
+#最少的是AIM
+choice_random = 330
+min_qty_threshold = 100
 randomreplace = 'False'
 #size指的是取的比例, 1跟0是原地考照
 train_size = 0.8
@@ -284,8 +285,9 @@ class sklearn_class:
         else:
             print('dataset_id gg')
 
-        glob_merged_data = []
+        #用來收抽取的資料        
         glob_data = []
+        #載入個別檔案並抽取到上面兩個list
         for f in glob_files:
             reader = []
             if file_id == 'csv':
@@ -295,20 +297,35 @@ class sklearn_class:
             else:
                 print('file_id gg')
 
-            if not choice_random == 0:
+            """
+            決定取幾個
+            """
+            #如果是0就全部
+            if choice_random == 0:
+                pass
+            else:
                 len_index = len(reader.index)
+                #如果是整數取整數
                 if isinstance(choice_random, int):
-                    minqty = int(choice_random)
-                    if minqty > len_index:
-                        minqty = len_index
+                    min_qty = int(choice_random)                    
+                #如果是分數取比例
                 else:
-                    minqty = int(len_index*choice_random)
-                if minqty-minqty_threshold <= 0:
-                    minqty = minqty_threshold
-                reader = reader.sample(n=minqty, replace=randomreplace)
-            glob_data.append(reader)
-            glob_merged_data = pd.concat(glob_data, ignore_index=True)
+                    min_qty = int(len_index*choice_random)
 
+                #最小值
+                if min_qty-min_qty_threshold <= 0:
+                    min_qty = min_qty_threshold
+                #最大值
+                if min_qty > len_index:
+                    min_qty = len_index
+                    print(dataset_id,f, min_qty)
+
+                reader = reader.sample(n=min_qty, replace=randomreplace)
+                
+            glob_data.append(reader)
+        
+        #轉pd
+        glob_merged_data = pd.concat(glob_data, ignore_index=True)
         if dataset_id == 'train':
             self.train_glob_merged_data = glob_merged_data
         elif dataset_id == 'test':
@@ -372,10 +389,11 @@ class sklearn_class:
             X_train, X_test, y_train, y_test = train_test_split(X, y, train_size = train_size, test_size = test_size)
         elif choice_split == 3:
             #RandomUnderSampler resample to "min(all class)"
-            under_X_train, under_X_test, under_y_train, under_y_test = train_test_split(X, y, train_size = train_size, test_size = test_size)
-            rus = RandomUnderSampler(random_state=0)
-            X_train, y_train = rus.fit_resample(under_X_train, under_y_train)
-            X_test, y_test = rus.fit_resample(under_X_test, under_y_test)
+            under_X_train, under_X_test, under_y_train, under_y_test = train_test_split(X, y, train_size = train_size, test_size = test_size)            
+            under_train = RandomUnderSampler(sampling_strategy = {int(samr):int(choice_random*train_size) for samr in range(17)}, random_state=0)
+            X_train, y_train = under_train.fit_resample(under_X_train, under_y_train)
+            under_test = RandomUnderSampler(sampling_strategy = {int(samr):int(choice_random*test_size) for samr in range(17)}, random_state=0)
+            X_test, y_test = under_test.fit_resample(under_X_test, under_y_test)
         elif choice_split == 4:
             #StratifiedShuffleSplit same rate "each class"
             train_index, test_index = stratified_split(y, train_size)
@@ -759,9 +777,13 @@ def main():
 if __name__ == '__main__':
     choice_dataset = 'ipandport' 
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
-    for i in range(3):
+    for i in range(10):
+        main()
+    choice_dataset = 'b255v6' 
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(10):
         main()
     choice_dataset = 'headerfield' 
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
-    for i in range(3):
+    for i in range(10):
         main()
