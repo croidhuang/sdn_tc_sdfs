@@ -221,7 +221,7 @@ def transform_packet_onlyheaderfield(packet):
             elif f.name == 'options':
                 headerfield[headerfield_num] = 0.0
             else:
-                headerfield[headerfield_num] = int(packet[IP].getfieldval(f.name)) / (2**ipv4_field_len_dict[f.name])
+                headerfield[headerfield_num] = int(packet[IP].getfieldval(f.name)) / ((2**ipv4_field_len_dict[f.name])-1)
     if IPv6 in packet:
         for f in IPv6().fields_desc:
             headerfield_num = headerfield_dict['ipv6_'+f.name]
@@ -230,19 +230,19 @@ def transform_packet_onlyheaderfield(packet):
             elif f.name == 'options':
                 headerfield[headerfield_num] = 0.0
             else:
-                headerfield[headerfield_num] = int(packet[IPv6].getfieldval(f.name)) / (2**ipv6_field_len_dict[f.name])
+                headerfield[headerfield_num] = int(packet[IPv6].getfieldval(f.name)) / ((2**ipv6_field_len_dict[f.name])-1)
     if TCP in packet:
         for f in TCP().fields_desc:
             headerfield_num = headerfield_dict['tcp_'+f.name]
             if f.name == 'options':
                 headerfield[headerfield_num] = 0.0
             else:
-                headerfield[headerfield_num] = int(packet[TCP].getfieldval(f.name)) / (2**tcp_field_len_dict[f.name])
+                headerfield[headerfield_num] = int(packet[TCP].getfieldval(f.name)) / ((2**tcp_field_len_dict[f.name])-1)
     if UDP in packet:
         for f in UDP().fields_desc:
             headerfield_num = headerfield_dict['udp_'+f.name]
-            headerfield[headerfield_num] = int(packet[UDP].getfieldval(f.name)) / (2**udp_field_len_dict[f.name])
-
+            headerfield[headerfield_num] = int(packet[UDP].getfieldval(f.name)) / ((2**udp_field_len_dict[f.name])-1)
+    
     return headerfield
 
 def transform_pcap(path, output_path: Path = None, output_batch_size=10000):
