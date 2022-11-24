@@ -98,7 +98,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         #print_ctrl, if True then print info
         self.AllPacketInfo_ctrl   = False
-        self.SliceDraw_ctrl       = False
+        self.SliceDraw_ctrl       = True
         self.EstDraw_ctrl         = False
         self.ClassifierPrint_ctrl = False
         self.ScheudulerPrint_ctrl = False
@@ -192,7 +192,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     else:
                         row.append(str(csvsrcid)+","+str(csvportno)+","+"Rx")
                         row.append(str(csvsrcid)+","+str(csvportno)+","+"Tx")
-            
+
             writer = csv.writer(csv_throughput_record_file)
             writer.writerow(row)
             row = []
@@ -209,16 +209,16 @@ class SimpleSwitch13(app_manager.RyuApp):
                             row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
                             sum_list.append(chr(first_col+csv_col_i)+str(first_row-1))
                             row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
-                            csv_col_i += 2                            
+                            csv_col_i += 2
                     else:
                         row.append('=sum('+chr(first_col+csv_col_i)+str(first_row)+':'+chr(first_col+csv_col_i)+str(first_row+TOTAL_TIME)+')')
                         row.append('=sum('+chr(first_col+csv_col_i+1)+str(first_row)+':'+chr(first_col+csv_col_i+1)+str(first_row+TOTAL_TIME)+')')
                         csv_col_i += 2
             sum_row=''
             for r in sum_list:
-                sum_row += str(r)                
+                sum_row += str(r)
                 if r != sum_list[-1]:
-                    sum_row += '+'    
+                    sum_row += '+'
             sum_row = '=('+sum_row+')/$A$2'
             row.append(sum_row)
             writer = csv.writer(csv_throughput_record_file)
@@ -1009,7 +1009,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             hard_timeout = self.hard_timeout[class_result]
             out_port = self.outport_lish["mac"][class_result][switchid][eth_dst]
             out_port = self._out_port_group(out_port = out_port, class_result = class_result, switchid = switchid, dst_host = eth_dst, layerid = "mac")
-            if self.ActionPrint_ctrl == True:                
+            if self.ActionPrint_ctrl == True:
                 self.logger.info(f"class{class_result} iam s{switchid:<2}(out = {out_port:>2}) dst {eth_dst}")
             match = datapath.ofproto_parser.OFPMatch(eth_dst = eth_dst)
             actions = [datapath.ofproto_parser.OFPActionOutput(port = out_port)]
