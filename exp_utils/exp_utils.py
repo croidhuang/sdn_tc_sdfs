@@ -42,7 +42,7 @@ def num_to_hostmac(host_num):
             host_mac_addr = host_mac_addr+macform[i]
         else:
             host_mac_addr = host_mac_addr+macform[i]+":"
-    return host_mac_addr
+    return str(host_mac_addr)
 
 def hostmac_to_num(hostmac):
     return int(str(hostmac).replace(":",""),16)
@@ -62,7 +62,7 @@ def num_to_hostipv4(host_num):
             host_ipv4_addr = host_ipv4_addr+str(ipv4form[i])
         else:
             host_ipv4_addr = host_ipv4_addr+str(ipv4form[i])+"."
-    return host_ipv4_addr
+    return str(host_ipv4_addr)
 
 def hostipv4_to_num(host_ipv4_addr):
     #10.0.0.1 => 1
@@ -77,7 +77,7 @@ def hostipv4_to_num(host_ipv4_addr):
     if host_num >= 16777216:
         print("too many host ipv4 gg")
 
-    return host_num 
+    return host_num
 
 def num_to_switchmac(switch_num):
     switch_num=str(hex(switch_num)).lstrip("0x")
@@ -106,11 +106,16 @@ def num_to_switchmac(switch_num):
             switch_mac_addr = switch_mac_addr+macform[i]+":"
     return switch_mac_addr
 
-def clienttraffictype_to_L4port(traffictype,client):
-    L4port=traffictype*10000+client*100
-    return L4port
+def clienttraffictype_to_L4port(traffictype,client,dst):
+    L4port=traffictype*10000+client*100+dst
+    #well known port
+    if traffictype == 0:
+        L4port=L4port+1024
+    if(L4port>((traffictype+1)*10000-1)):
+        print("check clienttraffictype_to_L4port, not enough port for use")
+    return int(L4port)
 
 def L4port_to_clienttraffictype(L4port):
     L4port=str(L4port).zfill(5)
     traffictype=L4port[0]
-    return traffictype
+    return int(traffictype)
