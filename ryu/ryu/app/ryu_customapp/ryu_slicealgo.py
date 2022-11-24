@@ -9,6 +9,7 @@ import os
 
 import pprint
 
+from exp_config.exp_config import topo_SLICENDICT
 from exp_utils.exp_utils import G_to_M
 
 def _removeCycle(T, spath):
@@ -168,26 +169,29 @@ def _getSpath(weight_G, tupS_v1, tupS_v2):
     except:
         return None
 
-def _sortSpath(T, spath_gen, impact_G):
-    sorted_spath_G_list=[]
+def _removeCycleSpath(T, spath_gen):
+    removecycle_G_list=[]
     for spath in spath_gen:
         spath_G = _removeCycle(T, spath)
-        sorted_spath_G_list.append(spath_G)
-    sorted_spath_G_list = [p for p in sorted(sorted_spath_G_list, key = lambda item:_sumC(item, impact_G), reverse = False)]
-    return sorted_spath_G_list
+        removecycle_G_list.append(spath_G)
+    return removecycle_G_list
 
-def _B_to_GB(input_B, num_float=1):
-    input_B = str(input_B/1000000)
+def _sortSpath(removecycle_G_list, impact_G):
+    sorted_G_list = [p for p in sorted(removecycle_G_list, key = lambda item:_sumC(item, impact_G), reverse = False)]
+    return sorted_G_list
+
+def _B_to_KB(input_B, num_float=1):
+    input_B = str(input_B/10**3)
     if '.' in input_B:
         for x in range(len(input_B)):
             if input_B[x] == '.':
                 try:
-                    output_GB = str(input_B[:x+num_float+1])+"GB"
+                    output_KB = str(input_B[:x+num_float+1])+"KB"
                 except:
-                    output_GB = str(input_B)+"GB"
+                    output_KB = str(input_B)+"KB"
     else:
-        output_GB = str(input_B)                    
-    return output_GB
+        output_KB = str(input_B)
+    return output_KB
 
 def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, showG, labels, dir_name, svg_name):
     nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
@@ -199,7 +203,7 @@ def _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, fo
         remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
         edge_labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
         for v1, v2 in remain_bandwidth_G.edges():
-            edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
+            edge_labels[(v1,v2)]=_B_to_KB(edge_labels[(v1,v2)])
         nx.draw_networkx_edge_labels(showG, topo_pos, edge_labels = edge_labels)
 
     svg_path = os.path.join("./"+dir_name+"/"+svg_name)
@@ -216,13 +220,13 @@ def _draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to
     remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
     edge_labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
     for v1, v2 in remain_bandwidth_G.edges():
-        edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
+        edge_labels[(v1,v2)]=_B_to_KB(edge_labels[(v1,v2)])
     nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
     svg_name = "topo_sliceG["+str(i)+"]"+"_"+str(icount)+".svg"
     svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
-    plt.title("traffic type "+str(i+1)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
+    plt.title("traffic type "+str(i)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
     plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
@@ -237,16 +241,16 @@ def _draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_d
     remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)
     edge_labels = nx.get_edge_attributes(remain_bandwidth_G, 'weight')
     for v1, v2 in remain_bandwidth_G.edges():
-        edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
+        edge_labels[(v1,v2)]=_B_to_KB(edge_labels[(v1,v2)])
     for v1, v2 in estG.edges():
         edge_labels[(v1,v2)]=remain_bandwidth_G[v1][v2]['weight']
-        edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
+        edge_labels[(v1,v2)]=_B_to_KB(edge_labels[(v1,v2)])
     nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
     svg_name = "topo_sliceG["+str(i)+"]"+str(icount)+".svg"
     svg_path = os.path.join("./"+dir_name+"/"+svg_name)
     print(f"{i}-{icount}")
-    plt.title("traffic type "+str(i+1)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
+    plt.title("traffic type "+str(i)+" (switch "+r"$\bf{"+str(G_to_M(tupS[0]))+"}$"+" to switch "+r"$\bf{"+str(G_to_M(tupS[1]))+"}$"+"): "+r"$\bf{"+str(trafficE)+"}$"+" B")
     plt.savefig(svg_path, format="svg")
     plt.clf()
     return icount+1
@@ -296,7 +300,7 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
 
     if SliceDraw_ctrl == True:
         #draw bandwidth
-        svg_name = "topo_sliceG[7]"+"_G.svg"
+        svg_name = "topo_sliceG["+str(len(topo_SLICENDICT))+"]"+"_G.svg"
         edge_color = "whitesmoke"
         labels = True
         _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, dir_name, svg_name)
@@ -309,11 +313,11 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         v_G = topo_sliceG[i].copy()
 
         #number +1 when call print svg
-        icount = 0
+        icount = 1
 
         if SliceDraw_ctrl == True:
             #draw G.V
-            svg_name = "topo_sliceG["+str(i)+"]"+"_V.svg"
+            svg_name = "topo_sliceG["+str(i)+"]"+"_0.svg"
             edge_color = "whitesmoke"
             labels = True
             _draw_name_G(allo_G, loading_G, EDGE_BANDWIDTH_G, node_color, edge_color, font_color, topo_pos, topo_G, labels, dir_name, svg_name)
@@ -323,64 +327,108 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
 
 
         #shortest path
-        for tupS, trafficE in sorted_HistoryTraffic.items():
-            if trafficE == 0:
-                    break
+        if ROUTING_TYPE == "bellman-ford":
+            for tupS, trafficE in HISTORYTRAFFIC[i].items():
+                if trafficE == 0:
+                    continue
 
-            tupS_v1 = tupS[0]
-            tupS_v2 = tupS[1]
-            #print(f"({ tupS_v1}, { tupS_v2}):{trafficE}")
+                tupS_v1 = tupS[0]
+                tupS_v2 = tupS[1]
+                #print(f"({ tupS_v1}, { tupS_v2}):{trafficE}")
 
-            """
-            algo
-            """
-
-            if ROUTING_TYPE == "algo":
-                impact_G = _updateC(impact_G, loading_G, trafficE, EDGE_BANDWIDTH_G)
                 allo_G = _weightG(allo_G, latency_G)
                 spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
                 if spath_gen == None:
                     print("no shortest path, may not connect")
                     continue
-                else:
-                    last_spath_gen = len(spath_gen)-1
-                sorted_spath_G_list = _sortSpath(topo_sliceG[i], spath_gen, impact_G)
+                sorted_spath_G_list = _removeCycleSpath(topo_sliceG[i], spath_gen)
 
-                for si, spath_G in enumerate(sorted_spath_G_list):
-                    if _checkB(spath_G, loading_G, EDGE_BANDWIDTH_G) == True:
-                        break
-                    if si == last_spath_gen:
-                        allo_G = _weightG(allo_G, impact_G)
-                        spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
-                        sorted_spath_G_list = _sortSpath(topo_sliceG[i], spath_gen, impact_G)
-            elif ROUTING_TYPE == "bellman-ford":
-                allo_G = _weightG(allo_G, latency_G)
-                spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
-                if spath_gen == None:
-                    print("no shortest path, may not connect")
+                """
+                algo
+                """
+
+                #add path
+                spath_G = sorted_spath_G_list[0]
+
+                estcycle_G = topo_sliceG[i].copy()
+                estcycle_G = _addPath(estcycle_G, spath_G)
+                estB_G = v_G.copy()
+                estB_G = _addPath(estB_G, spath_G)
+                if EstDraw_ctrl == True:
+                    estadd_G = v_G.copy()
+                    estadd_G = _addPath(estadd_G, spath_G)
+                    icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
+
+                for v1, v2 in spath_G.edges():
+                    topo_sliceG[i], loading_G, BW_usage[i], used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, BW_usage[i], used_Edge[i], trafficE, allo_G)
+                if SliceDraw_ctrl == True:
+                    icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
+
+
+        elif ROUTING_TYPE == "algo" or ROUTING_TYPE == "sp_sortC":
+            for tupS, trafficE in sorted_HistoryTraffic.items():
+                if trafficE == 0:
                     continue
-                sorted_spath_G_list = _sortSpath(topo_sliceG[i], spath_gen, impact_G)
 
-            """
-            algo
-            """
+                tupS_v1 = tupS[0]
+                tupS_v2 = tupS[1]
+                #print(f"({ tupS_v1}, { tupS_v2}):{trafficE}")
 
-            #add path
-            spath_G = sorted_spath_G_list[0]
+                """
+                algo
+                """
 
-            estcycle_G = topo_sliceG[i].copy()
-            estcycle_G = _addPath(estcycle_G, spath_G)
-            estB_G = v_G.copy()
-            estB_G = _addPath(estB_G, spath_G)
-            if EstDraw_ctrl == True:
-                estadd_G = v_G.copy()
-                estadd_G = _addPath(estadd_G, spath_G)
-                icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
+                if ROUTING_TYPE == "algo":
+                    impact_G = _updateC(impact_G, loading_G, trafficE, EDGE_BANDWIDTH_G)
+                    allo_G = _weightG(allo_G, latency_G)
+                    spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
+                    if spath_gen == None:
+                        print("no shortest path, may not connect")
+                        continue
+                    else:
+                        last_spath_gen = len(spath_gen)-1
+                    removecycle_G_list = _removeCycleSpath(topo_sliceG[i], spath_gen)
+                    sorted_spath_G_list = _sortSpath(removecycle_G_list, impact_G)
 
-            for v1, v2 in spath_G.edges():
-                topo_sliceG[i], loading_G, BW_usage[i], used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, BW_usage[i], used_Edge[i], trafficE, allo_G)
-            if SliceDraw_ctrl == True:
-                icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
+                    for si, spath_G in enumerate(sorted_spath_G_list):
+                        if _checkB(spath_G, loading_G, EDGE_BANDWIDTH_G) == True:
+                            break
+                        if si == last_spath_gen:
+                            allo_G = _weightG(allo_G, impact_G)
+                            spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
+                            removecycle_G_list  = _removeCycleSpath(topo_sliceG[i], spath_gen)
+                            sorted_spath_G_list = _sortSpath(removecycle_G_list, impact_G)
+
+                elif ROUTING_TYPE == "sp_sortC":
+                    impact_G = _updateC(impact_G, loading_G, trafficE, EDGE_BANDWIDTH_G)
+                    allo_G = _weightG(allo_G, latency_G)
+                    spath_gen = _getSpath(allo_G, tupS_v1, tupS_v2)
+                    if spath_gen == None:
+                        print("no shortest path, may not connect")
+                        continue
+                    removecycle_G_list = _removeCycleSpath(topo_sliceG[i], spath_gen)
+                    sorted_spath_G_list = _sortSpath(removecycle_G_list, impact_G)
+
+                """
+                algo
+                """
+
+                #add path
+                spath_G = sorted_spath_G_list[0]
+
+                estcycle_G = topo_sliceG[i].copy()
+                estcycle_G = _addPath(estcycle_G, spath_G)
+                estB_G = v_G.copy()
+                estB_G = _addPath(estB_G, spath_G)
+                if EstDraw_ctrl == True:
+                    estadd_G = v_G.copy()
+                    estadd_G = _addPath(estadd_G, spath_G)
+                    icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
+
+                for v1, v2 in spath_G.edges():
+                    topo_sliceG[i], loading_G, BW_usage[i], used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, BW_usage[i], used_Edge[i], trafficE, allo_G)
+                if SliceDraw_ctrl == True:
+                    icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
 
 
 
@@ -430,15 +478,15 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
         #allcolor in one svg
         edge_labels = nx.get_edge_attributes(loading_G, 'weight')
         for v1, v2 in loading_G.edges():
-            edge_labels[(v1,v2)]=_B_to_GB(edge_labels[(v1,v2)])
+            edge_labels[(v1,v2)]=_B_to_KB(edge_labels[(v1,v2)])
         nx.draw_networkx_edges(allo_G, topo_pos, edge_color="whitesmoke")
 
-        for i in range(7):
+        for i in range(len(topo_SLICENDICT)):
             node_labels={int(n):str(int(n)+1) for n in allo_G.nodes()}
             nx.draw_networkx(allo_G, topo_pos, labels=node_labels, nodelist = topo_sliceG[i].nodes(), edgelist = topo_sliceG[i].edges(), node_color=node_color, font_color=font_color, edge_color = node_dist_to_color[i+1], width = 4)
         nx.draw_networkx_edge_labels(allo_G, topo_pos, edge_labels = edge_labels)
 
-        svg_name = "topo_sliceG[7]_all.svg"
+        svg_name = "topo_sliceG["+str(len(topo_SLICENDICT))+"]_all.svg"
         svg_path = os.path.join("./"+dir_name+"/"+svg_name)
         plt.title("all tree loading")
         plt.savefig(svg_path, format="svg")
