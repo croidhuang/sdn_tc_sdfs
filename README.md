@@ -87,20 +87,23 @@ https://ryu.readthedocs.io/en/latest/getting_started.html
 注意pktreplay/pcap須放入pcap  
 搜尋<code>PKT_FILE_LIST</code>並修改exp_config/exp_config.py中pcap對應部份  
 
-#### 設定重播pcap參數  
+### 設定要做的實驗exp_iter.py
+修改username成你的username  
+修改list是要做的實驗  
+修改range是做的次數  
+時間與config只能手動對成一樣的  
+
+#### 設定拓撲及重播pcap參數  
 開啟exp_config/exp_config.py  
-修改設定  
-修改產生封包的開始時間：timestring  
 修改pcap路徑：PKT_FILE_LIST  
-修改select函數：SCHEDULER_TYPE  
-選擇性設定  
 修改pcap對應的傳送間隔：PKT_FILE_MAP  
 修改其他設定如執行時間及頻寬相關參數  
-  
-#### 執行mininet自動執行ryu自動執行host  
-<code>
-sudo python3 mininet/custom/custom_example_nxtomini.py  
-</code>  
+修改實驗拓撲  
+修改歷史流量  
+ 
+### 執行
+執行exp_iter.py  
+其他要傳的歷史流量mininet跟Ryu都會自動執行  
   
 #### 等待
 等待讀取pcap直到出現ready  
