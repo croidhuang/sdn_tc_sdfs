@@ -6,7 +6,7 @@ import os
 username = 'croid'
 ROUTING_TYPE_list = ["sp_sortC"]
 #"algo",       "sp_sortC",                 "bellman-ford"
-SCHEDULER_TYPE_list = ["MAX"]
+SCHEDULER_TYPE_list = [False]
 #False,        "MAX",                      "min",          "random",   "algo"
 EXP_TYPE_list = ["dymsquare_routing",]
  #"routing",    "scheduling_routing",      "square_routing", "two_routing",     "scheduling"
@@ -17,7 +17,7 @@ for ROUTING_TYPE in ROUTING_TYPE_list:
     for SCHEDULER_TYPE in SCHEDULER_TYPE_list:
         for EXP_TYPE in EXP_TYPE_list:
             for DYNBW_TYPE in DYNBW_TYPE_list:
-                for i in range(3):
+                for i in range(1):
                     #var
                     exp_iter = {}
                     exp_iter['ROUTING_TYPE'] = ROUTING_TYPE
