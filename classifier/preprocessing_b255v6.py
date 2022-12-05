@@ -24,92 +24,7 @@ from scipy import sparse
 from utils import PREFIX_TO_APP_ID, PREFIX_TO_TRAFFIC_ID
 
 source="./dataset/completePCAP/"
-target="./pcap/headerfield"
-
-ipv4_field_len_dict={#13
-    'version':4,
-    'ihl':4,
-    'tos':6,
-    'len':16,
-    'id':16,
-    'flags':3,
-    'frag':13,
-    'ttl':8,
-    'proto':8,
-    'chksum':16,
-    'src':32,
-    'dst':32,
-    'options':288,
-}
-ipv6_field_len_dict={#8
-    'version':4,
-    'tc':8,
-    'fl':20,
-    'plen':16,
-    'nh':8,
-    'hlim':8,
-    'src':128,
-    'dst':128,
-}
-tcp_field_len_dict={#11
-    'sport':16,
-    'dport':16,
-    'seq':32,
-    'ack':32,
-    'dataofs':4,
-    'reserved':3,
-    'flags':9,
-    'window':16,
-    'chksum':16,
-    'urgptr':16,
-    'options':32,
-}
-udp_field_len_dict={#4
-    'sport':16,
-    'dport':16,
-    'len':16,
-    'chksum':16,
-}
-
-headerfield_dict={
-    'ipv4_version':0,
-    'ipv4_ihl':1,
-    'ipv4_tos':2,
-    'ipv4_len':3,
-    'ipv4_id':4,
-    'ipv4_flags':5,
-    'ipv4_frag':6,
-    'ipv4_ttl':7,
-    'ipv4_proto':8,
-    'ipv4_chksum':9,
-    'ipv4_src':10,
-    'ipv4_dst':11,
-    'ipv4_options':12,
-    'ipv6_version':13,
-    'ipv6_tc':14,
-    'ipv6_fl':15,
-    'ipv6_plen':16,
-    'ipv6_nh':17,
-    'ipv6_hlim':18,
-    'ipv6_src':19,
-    'ipv6_dst':20,
-    'tcp_sport':21,
-    'tcp_dport':22,
-    'tcp_seq':23,
-    'tcp_ack':24,
-    'tcp_dataofs':25,
-    'tcp_reserved':26,
-    'tcp_flags':27,
-    'tcp_window':28,
-    'tcp_chksum':29,
-    'tcp_urgptr':30,
-    'tcp_options':31,
-    'udp_sport':32,
-    'udp_dport':33,
-    'udp_len':34,
-    'udp_chksum':35
- }
-
+target="./preprocess/b255v6"
 
 def read_pcap(path: Path):
     packets = rdpcap(str(path))
@@ -191,7 +106,7 @@ def packet_to_sparse_array(packet, max_length=40):
 def transform_packet(packet):
     if should_omit_packet(packet):
         return None
-
+    
     packet = remove_ether_header(packet)
     packet = mask_tcpudp(packet)
     packet = pad_udp(packet)
@@ -201,49 +116,6 @@ def transform_packet(packet):
 
     return arr
 
-
-def transform_packet_onlyheaderfield(packet):
-    if should_omit_packet(packet):
-        return None
-
-    listlen=len(ipv4_field_len_dict)+len(ipv6_field_len_dict)+len(tcp_field_len_dict)+len(udp_field_len_dict)
-    headerfield=[0]*listlen
-    
-    packet = remove_ether_header(packet)
-    packet = mask_tcpudp(packet)
-    packet = mask_ip(packet)
-
-    if IP in packet:
-        for f in IP().fields_desc:
-            headerfield_num = headerfield_dict['ipv4_'+f.name]
-            if f.name == 'src' or f.name == 'dst':
-                headerfield[headerfield_num] = 0.0
-            elif f.name == 'options':
-                headerfield[headerfield_num] = 0.0
-            else:
-                headerfield[headerfield_num] = int(packet[IP].getfieldval(f.name)) / ((2**ipv4_field_len_dict[f.name])-1)
-    if IPv6 in packet:
-        for f in IPv6().fields_desc:
-            headerfield_num = headerfield_dict['ipv6_'+f.name]
-            if f.name == 'src' or f.name == 'dst':
-                headerfield[headerfield_num] = 0.0
-            elif f.name == 'options':
-                headerfield[headerfield_num] = 0.0
-            else:
-                headerfield[headerfield_num] = int(packet[IPv6].getfieldval(f.name)) / ((2**ipv6_field_len_dict[f.name])-1)
-    if TCP in packet:
-        for f in TCP().fields_desc:
-            headerfield_num = headerfield_dict['tcp_'+f.name]
-            if f.name == 'options':
-                headerfield[headerfield_num] = 0.0
-            else:
-                headerfield[headerfield_num] = int(packet[TCP].getfieldval(f.name)) / ((2**tcp_field_len_dict[f.name])-1)
-    if UDP in packet:
-        for f in UDP().fields_desc:
-            headerfield_num = headerfield_dict['udp_'+f.name]
-            headerfield[headerfield_num] = int(packet[UDP].getfieldval(f.name)) / ((2**udp_field_len_dict[f.name])-1)
-    
-    return headerfield
 
 def transform_pcap(path, output_path: Path = None, output_batch_size=10000):
     #每個pcap轉檔完路徑檔名跟附註SUCCESS
@@ -256,7 +128,7 @@ def transform_pcap(path, output_path: Path = None, output_batch_size=10000):
     rows = []
     batch_index = 0
     for i, packet in enumerate(read_pcap(path)):
-        arr = transform_packet_onlyheaderfield(packet)
+        arr = transform_packet(packet)
         if arr is not None:
             # get labels for app identification
             #讀utils.py的label
@@ -278,7 +150,7 @@ def transform_pcap(path, output_path: Path = None, output_batch_size=10000):
             row = {
                 'app_label': app_label,
                 'traffic_label': traffic_label,
-                'feature': arr,
+                'feature': arr.todense().tolist()[0]
             }
             rows.append(row)
         

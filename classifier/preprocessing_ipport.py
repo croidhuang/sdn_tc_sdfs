@@ -25,8 +25,8 @@ from utils import PREFIX_TO_APP_ID, PREFIX_TO_TRAFFIC_ID
 
 import binascii
 
-source="./pcap/completePCAP"
-target="./pcap/ipandport"
+source="./dataset/completePCAP/"
+target="./preprocess/ipandport"
 
 def read_pcap(path: Path):
     packets = rdpcap(str(path))
