@@ -1,128 +1,6 @@
-import os
-import copy
-
-b255dict={
-    0:'IPv4_Version_IHL___IPv6_Version_Traffic_class1',
-    1:'IPv4_DSCP_ECN___IPv6_Traffic_class2_Flow_label1',
-    2:'IPv4_Total_Length1___IPv6_Flow_label2',
-    3:'IPv4_Total_Length2___IPv6_Flow_label3',
-    4:'IPv4_Id1___IPv6_Payload_length1',
-    5:'IPv4_Id2___IPv6_Payload_length2',
-    6:'IPv4_Flags_Fragment_Offset1___IPv6_Next_header',
-    7:'IPv4_Fragment_Offset2___IPv6_Hop_limit',
-    8:'IPv4_Time_To_Live___IPv6_src_IP_Addr1',
-    9:'IPv4_Protocol___IPv6_src_IP_Addr2',
-    10:'IPv4_Header_Checksum1___IPv6_src_IP_Addr3',
-    11:'IPv4_Header_Checksum2___IPv6_src_IP_Addr4',
-    12:'IPv4_src_IP_Addr1___IPv6_src_IP_Addr5',
-    13:'IPv4_src_IP_Addr2___IPv6_src_IP_Addr6',
-    14:'IPv4_src_IP_Addr3___IPv6_src_IP_Addr7',
-    15:'IPv4_src_IP_Addr4___IPv6_src_IP_Addr8',
-    16:'IPv4_dst_IP_Addr1___IPv6_src_IP_Addr9',
-    17:'IPv4_dst_IP_Addr2___IPv6_src_IP_Addr10',
-    18:'IPv4_dst_IP_Addr3___IPv6_src_IP_Addr11',
-    19:'IPv4_dst_IP_Addr4___IPv6_src_IP_Addr12',
-    20:'TCP_UDP_src_port1___IPv6_src_IP_Addr13',
-    21:'TCP_UDP_src_port2___IPv6_src_IP_Addr14',
-    22:'TCP_UDP_dst_port1___IPv6_src_IP_Addr15',
-    23:'TCP_UDP_dst_port2___IPv6_src_IP_Addr16',
-    24:'TCP_seqnum1_UDP_length1___IPv6_dst_IP_Addr1',
-    25:'TCP_seqnum2_UDP_length2___IPv6_dst_IP_Addr2',
-    26:'TCP_seqnum3_UDP_checksum1___IPv6_dst_IP_Addr3',
-    27:'TCP_seqnum4_UDP_checksum2___IPv6_dst_IP_Addr4',
-    28:'TCP_acknum1___IPv6_dst_IP_Addr5',
-    29:'TCP_acknum2___IPv6_dst_IP_Addr6',
-    30:'TCP_acknum3___IPv6_dst_IP_Addr7',
-    31:'TCP_acknum4___IPv6_dst_IP_Addr8',
-    32:'TCP_Data_offset_Reserved_NS___IPv6_dst_IP_Addr9',
-    33:'TCP_flagbit___IPv6_dst_IP_Addr10',
-    34:'TCP_Window_Size1___IPv6_dst_IP_Addr11',
-    35:'TCP_Window_Size2___IPv6_dst_IP_Addr12',
-    36:'TCP_Checksum1___IPv6_dst_IP_Addr13',
-    37:'TCP_Checksum2___IPv6_dst_IP_Addr14',
-    38:'TCP_Urgent_pointer1___IPv6_dst_IP_Addr15',
-    39:'TCP_Urgent_pointer2___IPv6_dst_IP_Addr16',
-}
-
-ipandport_dict={
-    0: 'src_ip_1',
-    1: 'src_ip_2',
-    2: 'src_ip_3',
-    3: 'src_ip_4',
-    4: 'src_ip_5',
-    5: 'src_ip_6',
-    6: 'src_ip_7',
-    7: 'src_ip_8',
-    8: 'src_ip_9',
-    9: 'src_ip_10',
-    10: 'src_ip_11',
-    11: 'src_ip_12',
-    12: 'src_ip_13',
-    13: 'src_ip_14',
-    14: 'src_ip_15',
-    15: 'src_ip_16',
-    16: 'dst_ip_1',
-    17: 'dst_ip_2',
-    18: 'dst_ip_3',
-    19: 'dst_ip_4',
-    20: 'dst_ip_5',
-    21: 'dst_ip_6',
-    22: 'dst_ip_7',
-    23: 'dst_ip_8',
-    24: 'dst_ip_9',
-    25: 'dst_ip_10',
-    26: 'dst_ip_11',
-    27: 'dst_ip_12',
-    28: 'dst_ip_13',
-    29: 'dst_ip_14',
-    30: 'dst_ip_15',
-    31: 'dst_ip_16',
-    32: 'src_port_1',
-    33: 'src_port_2',
-    34: 'dst_port_1',
-    35: 'dst_port_2',
- }
-
-headerfield_dict={
-    0: 'ipv4_version',
-    1: 'ipv4_ihl',
-    2: 'ipv4_tos',
-    3: 'ipv4_len',
-    4: 'ipv4_id',
-    5: 'ipv4_flags',
-    6: 'ipv4_frag',
-    7: 'ipv4_ttl',
-    8: 'ipv4_proto',
-    9: 'ipv4_chksum',
-    10: 'ipv4_src',
-    11: 'ipv4_dst',
-    12: 'ipv4_options',
-    13: 'ipv6_version',
-    14: 'ipv6_tc',
-    15: 'ipv6_fl',
-    16: 'ipv6_plen',
-    17: 'ipv6_nh',
-    18: 'ipv6_hlim',
-    19: 'ipv6_src',
-    20: 'ipv6_dst',
-    21: 'tcp_sport',
-    22: 'tcp_dport',
-    23: 'tcp_seq',
-    24: 'tcp_ack',
-    25: 'tcp_dataofs',
-    26: 'tcp_reserved',
-    27: 'tcp_flags',
-    28: 'tcp_window',
-    29: 'tcp_chksum',
-    30: 'tcp_urgptr',
-    31: 'tcp_options',
-    32: 'udp_sport',
-    33: 'udp_dport',
-    34: 'udp_len',
-    35: 'udp_chksum'
-}
-
-
+"""
+分類相關參數
+"""
 
 #要驗證的模型
 try:
@@ -130,26 +8,27 @@ try:
 except:
     print("no model file, please check")
 
-#輸入輸出目錄
-choice_dataset = 'b255v6'
+#輸出目錄
 outputpath = './'
 
+#輸入dataset
+choice_dataset = 'b255v6'
 """
 #記得改路徑字串，該資料夾所有，*.parquet或*.csv
 """
 def dataset_path(choice_dataset):
     if choice_dataset == 'b255v6':
-        trainpath = './pcap/b255v6/*.parquet'
-        testpath = './pcap/b255v6/*.parquet'
-        headerdict = b255dict
+        trainpath = './preprocess/b255v6/*.parquet'
+        testpath = './preprocess/b255v6/*.parquet'
+        headerdict = preprocessing_dictforprint.b255dict
     elif choice_dataset == 'ipandport':
-        trainpath = './pcap/ipandport/*.parquet'
-        testpath = './pcap/ipandport/*.parquet'
-        headerdict = ipandport_dict
+        trainpath = './preprocess/ipandport/*.parquet'
+        testpath = './preprocess/ipandport/*.parquet'
+        headerdict = preprocessing_dictforprint.ipandport_dict
     elif choice_dataset == 'headerfield':
-        trainpath = './pcap/headerfield/*.parquet'
-        testpath = './pcap/headerfield/*.parquet'
-        headerdict = headerfield_dict
+        trainpath = './preprocess/headerfield/*.parquet'
+        testpath = './preprocess/headerfield/*.parquet'
+        headerdict = preprocessing_dictforprint.headerfield_dict
     else:
         print("choice_dataset gg")
 
@@ -157,11 +36,15 @@ def dataset_path(choice_dataset):
 
 trainpath, testpath, headerdict = dataset_path(choice_dataset)
 
+#最後要分類什麼，label要什麼
+#'app'
+#'traffic'
+class_id = 'traffic'
+
 #choice_random每個pcap取幾個或取比例, 注意0是比例全部(1是1個非比例1), b255一個檔案10, 000, 全部11, 000, 000記憶體可能GG
-#min_qty是最低取的數量, replace是數量不足能不能重複取
-#最少的是AIM
-choice_random = 3300
-min_qty_threshold = 100
+choice_random = 100 #最少的是AIM只有6個，所以最少一類就是大約choice_random*6
+total_sample = 4200 #總數，所有類加起來取幾個
+min_qty_threshold = 10 #min_qty是最低取的數量, replace是數量不足能不能重複取
 randomreplace = 'False'
 #size指的是取的比例, 1跟0是原地考照
 train_size = 0.8
@@ -173,12 +56,12 @@ test_size = 0.2
 #4StratifiedShuffleSplit same rate "each class"
 choice_split = 3
 
-#1原地考照
+#1原地考照(train就是test，看數量參數有沒有足夠train好)
 #2同train, test
 #3不同train, test
 choice_train = 2
 
-#控制要不要執行時候印
+#要不要印出來看
 show_ctrl = False
 #要不要標題，不然存一堆會不知道誰是誰
 title_ctrl = True
@@ -187,7 +70,7 @@ cal_confusion_matrix = True
 #要不要計算跟存決策樹(要是樹的才能產生)
 cal_tree_structure = False
 
-#換分類改這個
+#換分類改這個，lightgbm也差不多威
 # 1clf
 # 2forest
 # 3svc
@@ -202,6 +85,11 @@ strrecord = ''
 """
 ##################################################################################
 """
+
+import os
+import copy
+import utils
+import preprocessing_dictforprint
 
 #sklearn的切set工具要numpy
 import numpy as np
@@ -251,7 +139,7 @@ import traceback
 
 
 """
-#算照比例每個是多少個
+#算照比例每個是多少個的函數
 #RandomUnderSampler resample to "min(all class)"
 """
 
@@ -276,6 +164,14 @@ class sklearn_class:
         self.testpath = testpath
         self.train_glob_merged_data = []
         self.test_glob_merged_data = []
+        if class_id == 'traffic':
+            self.class_label = 'traffic_label'
+            self.class_total = len(utils.ID_TO_TRAFFIC)
+            self.class_dict = utils.ID_TO_TRAFFIC
+        elif class_id == 'app':
+            self.class_label = 'app_label'
+            self.class_total = len(utils.ID_TO_APP)
+            self.class_dict = utils.ID_TO_APP
 
     def input_func(self, dataset_id, file_id):
         #merge多個
@@ -287,14 +183,14 @@ class sklearn_class:
             print('dataset_id gg')
 
         #用來收抽取的資料
-        glob_app_data = {i:[] for i in range(17)}
+        glob_app_data = {i:[] for i in range(self.class_total)}
         glob_app_data[99]=[]
         glob_app_data['NaN']=[]
         #載入個別檔案並抽取到上面兩個list
         for f in glob_files:
             reader = []
             if file_id == 'csv':
-                reader = pd.read_csv(f, engine='c')
+                reader = pd.read_csv(f, engine='c')                
             elif file_id == 'parquet':
                 reader = pd.read_parquet(f, engine='fastparquet')
             else:
@@ -324,8 +220,11 @@ class sklearn_class:
                     ###print(dataset_id,f, min_qty)
 
                 reader = reader.sample(n=min_qty, replace=randomreplace)
-                glob_app_data[int(reader['app_label'].values[0])].append(reader)
-
+                try:
+                    glob_app_data[int(reader[self.class_label].values[0])].append(reader)
+                except:
+                    print(int(reader[self.class_label].values[0]))
+                    
         glob_data=[]
         for d in glob_app_data.values():
             for dd in d:
@@ -339,7 +238,7 @@ class sklearn_class:
         else:
             print('dataset_id gg')
         #可印整個大檔會簡略顯示
-        #print(glob_merged_data)
+        print(glob_merged_data)
 
     def input_train_csv(self):
         #merge多個csv
@@ -379,7 +278,7 @@ class sklearn_class:
         else:
             print('file_id gg')
         X = np.array(X)
-        y = glob_merged_data['app_label'].values.reshape(-1,).tolist()
+        y = glob_merged_data[self.class_label].values.reshape(-1,).tolist()
         y = np.array(y)
         #沒事別印會印到細節GG
         #print(X, y)
@@ -399,9 +298,9 @@ class sklearn_class:
         elif choice_split == 3:
             #RandomUnderSampler resample to "min(all class)"
             under_X_train, under_X_test, under_y_train, under_y_test = train_test_split(X, y, train_size = train_size, test_size = test_size)
-            under_train = RandomUnderSampler(sampling_strategy = {int(samr):int(choice_random*train_size) for samr in range(17)}, random_state=0)
+            under_train = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample*train_size) for samr in range(self.class_total)}, random_state=0)
             X_train, y_train = under_train.fit_resample(under_X_train, under_y_train)
-            under_test = RandomUnderSampler(sampling_strategy = {int(samr):int(choice_random*test_size) for samr in range(17)}, random_state=0)
+            under_test = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample*test_size) for samr in range(self.class_total)}, random_state=0)
             X_test, y_test = under_test.fit_resample(under_X_test, under_y_test)
         elif choice_split == 4:
             #StratifiedShuffleSplit same rate "each class"
@@ -547,30 +446,12 @@ def file_timestamp():
     return titlet, patht
 
 
-def print_result(test_y_test, y_test_predicted, classifier):
+def print_result(test_y_test, y_test_predicted, class_dict, classifier):
     #print(test_y_test, y_test_predicted)
-    ID_TO_APP = {
-    0: 'AIM Chat',
-    1: 'Email',
-    2: 'Facebook',
-    3: 'FTPS',
-    4: 'Gmail',
-    5: 'Hangouts',
-    6: 'ICQ',
-    7: 'Netflix',
-    8: 'SCP',
-    9: 'SFTP',
-    10: 'Skype',
-    11: 'Spotify',
-    12: 'Torrent',
-    13: 'Tor',
-    14: 'Vimeo',
-    15: 'Voipbuster',
-    16: 'Youtube',
-    }
+    
     labelslist = []
     targetnameslist = []
-    for k, v in ID_TO_APP.items():
+    for k, v in class_dict.items():
         labelslist.append(k)
         targetnameslist.append(v)
 
@@ -839,7 +720,7 @@ def main():
             print('choice_classfier gg')
 
         if choice_classfier:
-            cmrecord,dictrecord = print_result(y_test_fold, y_test_predicted, classifier)
+            cmrecord,dictrecord = print_result(y_test_fold, y_test_predicted, ttt.class_dict, classifier)
         print('\n', '================ We Can Only See A Short Distance Ahead. ================', '\n')
         
         for dictk,dictv in dictrecord.items():
@@ -863,7 +744,7 @@ def main():
                     sum_cm_report[cmi][cmii] += cmitem
         print(sum_cm_report)
 
-        report = '{i}-fold\n'
+        report = f'{i}-fold\n'
         report += print_fold_report(dictrecord)
         cm_report = print_fold_cmreport(cmrecord)
         txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
@@ -901,15 +782,17 @@ def main():
             f.close()
 
 if __name__ == '__main__':
-    """choice_dataset = 'ipandport'
+    main()
+
+    choice_dataset = 'ipandport'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
-    for i in range(10):
-        main()"""
+    for i in range(1):
+        main()
     choice_dataset = 'b255v6'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
-    for i in range(10):
+    for i in range(1):
         main()
-    """choice_dataset = 'headerfield'
+    choice_dataset = 'headerfield'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
-    for i in range(10):
-        main()"""
+    for i in range(1):
+        main()

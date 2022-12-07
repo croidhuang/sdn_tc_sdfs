@@ -472,12 +472,6 @@ ID_TO_TRAFFIC = {
     4: 'Voip',
     5: 'P2P',
     6: 'browsing',
-    7: 'VPN: Chat',
-    8: 'VPN: File Transfer',
-    9: 'VPN: Email',
-    10: 'VPN: Streaming',    
-    11: 'VPN: Voip',
-    12: 'VPN: Torrent',
 }
 
 dir_checklist={}
