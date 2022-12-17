@@ -897,10 +897,20 @@ def main():
     y_test_predicted, classifier = choice_classfier_func(X_train, y_train, X_test)    
     if choice_classfier:
         cmrecord,dictrecord = print_result(y_test, y_test_predicted, ttt.class_dict, classifier)
+    report = f'8020 \n'
+    report += print_text_report(dictrecord)
+    cm_report = print_fold_cmreport(cmrecord)
+    txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+    f = open(txtoutput_path , 'a')
+    f.write(cm_report)
+    f.write(report)
+    f.write('\n')
+    f.close()
 
-    #ten_time_avg(ttt, X_train, y_train, X_test, y_test)
-
-    ten_foldcross(ttt, X_train, y_train, X_test, y_test)
+    ten_time_avg(ttt, X_train, y_train, X_test, y_test)
+    
+    #還沒改好index會出錯
+    #ten_foldcross(ttt, X_train, y_train, X_test, y_test)
 
 
 if __name__ == '__main__':
