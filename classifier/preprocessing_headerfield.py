@@ -24,7 +24,7 @@ from scipy import sparse
 from utils import PREFIX_TO_APP_ID, PREFIX_TO_TRAFFIC_ID
 
 source="./dataset/completePCAP/"
-target="./pcap/headerfield"
+target="./preprocess/headerfield"
 
 ipv4_field_len_dict={#13
     'version':4,

@@ -1,10 +1,15 @@
+import os
+import copy
+import utils
+import preprocessing_dictforprint
+
 """
 分類相關參數
 """
 
 #要驗證的模型
 try:
-    valid_modelpath = './models/b255v6 RandomForest choice_random=0.004 train_size=0.8 test_size=0.2 choice_split=3 choice_train=2 1630563027.216647.pkl'
+    valid_modelpath = './models/b255v6 RandomForest choice_random_perfile=0.004 train_size=0.8 test_size=0.2 choice_split=3 choice_train=2 1630563027.216647.pkl'
 except:
     print("no model file, please check")
 
@@ -39,12 +44,14 @@ trainpath, testpath, headerdict = dataset_path(choice_dataset)
 #最後要分類什麼，label要什麼
 #'app'
 #'traffic'
-class_id = 'traffic'
+class_id = 'app'
 
-#choice_random每個pcap取幾個或取比例, 注意0是比例全部(1是1個非比例1), b255一個檔案10, 000, 全部11, 000, 000記憶體可能GG
-choice_random = 100 #最少的是AIM只有6個，所以最少一類就是大約choice_random*6
-total_sample = 4200 #總數，所有類加起來取幾個
-min_qty_threshold = 10 #min_qty是最低取的數量, replace是數量不足能不能重複取
+#choice_random_perfile每個pcap取幾個或取比例, 注意0是比例全部(1是1個非比例1), b255一個檔案10, 000, 全部11, 000, 000記憶體可能GG
+#最少的是AIM只有6個，所以最少一類就是大約choice_random_perfile*6
+choice_random_perfile = 1500
+#每一類加起來取幾個
+total_sample_perclass = 3300
+min_qty_threshold = 100 #min_qty是最低取的數量, replace是數量不足能不能重複取
 randomreplace = 'False'
 #size指的是取的比例, 1跟0是原地考照
 train_size = 0.8
@@ -60,6 +67,11 @@ choice_split = 3
 #2同train, test
 #3不同train, test
 choice_train = 2
+
+#1 不切
+#2 一組切十次相異實驗
+#3 fold cross valid
+choice_valid = 1
 
 #要不要印出來看
 show_ctrl = False
@@ -85,11 +97,6 @@ strrecord = ''
 """
 ##################################################################################
 """
-
-import os
-import copy
-import utils
-import preprocessing_dictforprint
 
 #sklearn的切set工具要numpy
 import numpy as np
@@ -200,16 +207,16 @@ class sklearn_class:
             決定取幾個
             """
             #如果是0就全部
-            if choice_random == 0:
+            if choice_random_perfile == 0:
                 pass
             else:
                 len_index = len(reader.index)
                 #如果是整數取整數
-                if isinstance(choice_random, int):
-                    min_qty = int(choice_random)
+                if isinstance(choice_random_perfile, int):
+                    min_qty = int(choice_random_perfile)
                 #如果是分數取比例
                 else:
-                    min_qty = int(len_index*choice_random)
+                    min_qty = int(len_index*choice_random_perfile)
 
                 #最小值
                 if min_qty-min_qty_threshold <= 0:
@@ -298,9 +305,9 @@ class sklearn_class:
         elif choice_split == 3:
             #RandomUnderSampler resample to "min(all class)"
             under_X_train, under_X_test, under_y_train, under_y_test = train_test_split(X, y, train_size = train_size, test_size = test_size)
-            under_train = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample*train_size) for samr in range(self.class_total)}, random_state=0)
+            under_train = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample_perclass*train_size) for samr in range(self.class_total)}, random_state=0)
             X_train, y_train = under_train.fit_resample(under_X_train, under_y_train)
-            under_test = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample*test_size) for samr in range(self.class_total)}, random_state=0)
+            under_test = RandomUnderSampler(sampling_strategy = {int(samr):int(total_sample_perclass*test_size) for samr in range(self.class_total)}, random_state=0)
             X_test, y_test = under_test.fit_resample(under_X_test, under_y_test)
         elif choice_split == 4:
             #StratifiedShuffleSplit same rate "each class"
@@ -511,7 +518,7 @@ def print_result(test_y_test, y_test_predicted, class_dict, classifier):
     plt.clf()
     return cm_report,dictrecord
 
-def print_fold_report(inputrecord):                                          
+def print_text_report(inputrecord):                                          
     longest_last_line_heading = "weighted avg"
     name_width = max(len(k) for k,v in inputrecord.items())
     width = max(name_width, len(longest_last_line_heading))
@@ -559,7 +566,7 @@ def save_models(clf, classifier):
                                   dir_name+'/' +
                                   choice_dataset+' ' +
                                   classifier+' ' +
-                                  'choice_random='+str(choice_random)+' ' +
+                                  'choice_random_perfile='+str(choice_random_perfile)+' ' +
                                   'train_size='+str(train_size)+' ' +
                                   'test_size='+str(test_size)+' ' +
                                   'choice_split='+str(choice_split)+' ' +
@@ -638,6 +645,205 @@ def print_tree(clf, classifier):
     pydot_graph.write_svg(svgoutput_path)
 
 
+def choice_classfier_func(X_train, y_train, X_test):
+    if choice_classfier == 1:
+        y_test_predicted, classifier = classifier_clf(X_train, y_train, X_test)
+    elif choice_classfier == 2:
+        y_test_predicted, classifier = classifier_forest(X_train, y_train, X_test)
+    elif choice_classfier == 3:
+        y_test_predicted, classifier = classifier_svc(X_train, y_train, X_test)
+    elif choice_classfier == 4:
+        y_test_predicted, classifier = classifier_c45clf(X_train, y_train, X_test)
+    elif choice_classfier == 5:
+        y_test_predicted, classifier = classifier_clfe(X_train, y_train, X_test)
+    elif choice_classfier == 6:
+        y_test_predicted, classifier = classifier_lightgbm(X_train, y_train, X_test)
+    elif choice_classfier == 9:
+        #讀取Model
+        readclf = joblib.load(valid_modelpath)
+        y_test_predicted, classifier = classifier_valid(readclf, X_test)
+    else:
+        print('choice_classfier gg')
+
+    print('\n', '================ We Can Only See A Short Distance Ahead. ================', '\n')
+    return y_test_predicted, classifier 
+
+
+
+def ten_time_avg(ttt, X_train, y_train, X_test, y_test):
+    train_skf = StratifiedKFold(n_splits=10)
+    train_skf.get_n_splits(X_train, y_train)
+    test_skf = StratifiedKFold(n_splits=10)
+    test_skf.get_n_splits(X_test, y_test)
+
+    sum_dictrecord={}
+    sum_cm_report=[]
+
+    for i in range(10):
+        train_index = list(train_skf.split(X_train, y_train))[i][1]
+        test_index = list(test_skf.split(X_test, y_test))[i][1]
+        X_train_times, y_train_times, X_test_times, y_test_times = X_train[train_index], y_train[train_index], X_test[test_index], y_test[test_index]
+
+        y_test_predicted, classifier = choice_classfier_func(X_train_times, y_train_times, X_test_times)
+
+        if choice_classfier:
+            cmrecord,dictrecord = print_result(y_test_times, y_test_predicted, ttt.class_dict, classifier)
+        
+        #sum 1~10
+        for dictk,dictv in dictrecord.items():
+            if not dictk in sum_dictrecord.keys():
+                sum_dictrecord[dictk]=dictv
+            else:
+                if isinstance(dictv,dict):
+                    for k,v in dictv.items():
+                        sum_dictrecord[dictk][k]+=dictrecord[dictk][k]
+                else:
+                    sum_dictrecord[dictk]+=dictrecord[dictk]
+        
+        if sum_cm_report == []:
+            sum_cm_report = [[] for cmi,cmlist in enumerate(cmrecord)]
+            for cmi,cmlist in enumerate(cmrecord):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi].append(cmitem)
+        else:
+            for cmi,cmlist in enumerate(cmrecord):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi][cmii] += cmitem
+
+        report = f'{i}-time\n'
+        report += print_text_report(dictrecord)
+        cm_report = print_fold_cmreport(cmrecord)
+        txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+        f = open(txtoutput_path , 'a')
+        f.write(cm_report)
+        f.write(report)
+        f.write('\n')
+        f.close()
+        
+        #10 cal avg
+        if i == (10-1):
+            for k,v in sum_dictrecord.items():
+                if isinstance(v,dict):
+                    for kk,vv in v.items():
+                        if isinstance(vv,float):
+                            sum_dictrecord[k][kk]=sum_dictrecord[k][kk]/10
+                        else:
+                            sum_dictrecord[k][kk]=int(sum_dictrecord[k][kk]/10)
+                else:
+                    sum_dictrecord[k]=sum_dictrecord[k]/10 
+
+            for cmi,cmlist in enumerate(sum_cm_report):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi][cmii] = float(sum_cm_report[cmi][cmii]/10)
+
+            
+            cm_report = '========10-time avg========\n'
+            cm_report += print_fold_cmreport(sum_cm_report)
+            report='========10-time avg========\n'
+            report += print_text_report(sum_dictrecord)
+            txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+            f = open(txtoutput_path , 'a')
+            f.write(cm_report)
+            f.write(report)
+            f.write('\n')
+            f.close()
+
+
+def ten_foldcross(ttt, X_train, y_train, X_test, y_test):
+    print(X_train)
+    print(X_test)
+    X_merge = np.concatenate((X_train , X_test))
+    y_merge = np.concatenate((y_train , y_test))
+    print(X_merge)
+
+    merge_skf = StratifiedKFold(n_splits=10)
+    merge_skf.get_n_splits(X_merge, y_merge)
+
+    sum_dictrecord={}
+    sum_cm_report=[]
+
+    for i in range(10):
+        
+        train_foldcross_list = [k for k in range(10) if k!=i]
+        test_foldcross_list = [i]
+
+        for ki,k in enumerate(train_foldcross_list):
+            if ki == 0:
+                train_index = list(merge_skf.split(X_merge, y_merge))[k][1]
+            else:
+                train_index += list(merge_skf.split(X_merge, y_merge))[k][1]
+        for ki,k in enumerate(test_foldcross_list):
+            if ki == 0:
+                test_index = list(merge_skf.split(X_merge, y_merge))[k][1]
+            else:
+                test_index += list(merge_skf.split(X_merge, y_merge))[k][1]
+        
+        X_train_foldcross, y_train_foldcross, X_test_foldcross, y_test_foldcross = X_merge[train_index], y_merge[train_index], X_merge[test_index], y_merge[test_index]
+
+        y_test_predicted, classifier = choice_classfier_func(X_train_foldcross, y_train_foldcross, X_test_foldcross)
+
+        if choice_classfier:
+            cmrecord,dictrecord = print_result(y_test_foldcross, y_test_predicted, ttt.class_dict, classifier)
+        
+        #sum 1~10
+        for dictk,dictv in dictrecord.items():
+            if not dictk in sum_dictrecord.keys():
+                sum_dictrecord[dictk]=dictv
+            else:
+                if isinstance(dictv,dict):
+                    for k,v in dictv.items():
+                        sum_dictrecord[dictk][k]+=dictrecord[dictk][k]
+                else:
+                    sum_dictrecord[dictk]+=dictrecord[dictk]
+        
+        if sum_cm_report == []:
+            sum_cm_report = [[] for cmi,cmlist in enumerate(cmrecord)]
+            for cmi,cmlist in enumerate(cmrecord):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi].append(cmitem)
+        else:
+            for cmi,cmlist in enumerate(cmrecord):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi][cmii] += cmitem
+
+        report = f'{i}-foldcross\n'
+        report += print_text_report(dictrecord)
+        cm_report = print_fold_cmreport(cmrecord)
+        txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+        f = open(txtoutput_path , 'a')
+        f.write(cm_report)
+        f.write(report)
+        f.write('\n')
+        f.close()
+        
+        #10 cal avg
+        if i == (10-1):
+            for k,v in sum_dictrecord.items():
+                if isinstance(v,dict):
+                    for kk,vv in v.items():
+                        if isinstance(vv,float):
+                            sum_dictrecord[k][kk]=sum_dictrecord[k][kk]/10
+                        else:
+                            sum_dictrecord[k][kk]=int(sum_dictrecord[k][kk]/10)
+                else:
+                    sum_dictrecord[k]=sum_dictrecord[k]/10 
+
+            for cmi,cmlist in enumerate(sum_cm_report):
+                for cmii, cmitem in enumerate(cmlist):
+                    sum_cm_report[cmi][cmii] = float(sum_cm_report[cmi][cmii]/10)
+
+            
+            cm_report = '========10-foldcross avg========\n'
+            cm_report += print_fold_cmreport(sum_cm_report)
+            report='========10-foldcross avg========\n'
+            report += print_text_report(sum_dictrecord)
+            txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+            f = open(txtoutput_path , 'a')
+            f.write(cm_report)
+            f.write(report)
+            f.write('\n')
+            f.close()
+
 def main():
     if trainpath[(len('.csv')*-1):] == '.csv':
         #read
@@ -687,103 +893,37 @@ def main():
     else:
         print('choice_train gg')
 
-    train_skf = StratifiedKFold(n_splits=10)
-    train_skf.get_n_splits(X_train, y_train)
-    test_skf = StratifiedKFold(n_splits=10)
-    test_skf.get_n_splits(X_test, y_test)
+    
+    y_test_predicted, classifier = choice_classfier_func(X_train, y_train, X_test)    
+    if choice_classfier:
+        cmrecord,dictrecord = print_result(y_test, y_test_predicted, ttt.class_dict, classifier)
 
-    sum_dictrecord={}
-    sum_cm_report=[]
+    #ten_time_avg(ttt, X_train, y_train, X_test, y_test)
 
-    for i in range(10):
-        train_index = list(train_skf.split(X_train, y_train))[i][1]
-        test_index = list(test_skf.split(X_test, y_test))[i][1]
-        X_train_fold, y_train_fold, X_test_fold, y_test_fold = X_train[train_index], y_train[train_index], X_test[test_index], y_test[test_index]
+    ten_foldcross(ttt, X_train, y_train, X_test, y_test)
 
-        if choice_classfier == 1:
-            y_test_predicted, classifier = classifier_clf(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 2:
-            y_test_predicted, classifier = classifier_forest(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 3:
-            y_test_predicted, classifier = classifier_svc(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 4:
-            y_test_predicted, classifier = classifier_c45clf(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 5:
-            y_test_predicted, classifier = classifier_clfe(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 6:
-            y_test_predicted, classifier = classifier_lightgbm(X_train_fold, y_train_fold, X_test_fold)
-        elif choice_classfier == 9:
-            #讀取Model
-            readclf = joblib.load(valid_modelpath)
-            y_test_predicted, classifier = classifier_valid(readclf, X_test)
-        else:
-            print('choice_classfier gg')
-
-        if choice_classfier:
-            cmrecord,dictrecord = print_result(y_test_fold, y_test_predicted, ttt.class_dict, classifier)
-        print('\n', '================ We Can Only See A Short Distance Ahead. ================', '\n')
-        
-        for dictk,dictv in dictrecord.items():
-            if not dictk in sum_dictrecord.keys():
-                sum_dictrecord[dictk]=dictv
-            else:
-                if isinstance(dictv,dict):
-                    for k,v in dictv.items():
-                        sum_dictrecord[dictk][k]+=dictrecord[dictk][k]
-                else:
-                    sum_dictrecord[dictk]+=dictrecord[dictk]
-        
-        if sum_cm_report == []:
-            sum_cm_report = [[] for cmi,cmlist in enumerate(cmrecord)]
-            for cmi,cmlist in enumerate(cmrecord):
-                for cmii, cmitem in enumerate(cmlist):
-                    sum_cm_report[cmi].append(cmitem)
-        else:
-            for cmi,cmlist in enumerate(cmrecord):
-                for cmii, cmitem in enumerate(cmlist):
-                    sum_cm_report[cmi][cmii] += cmitem
-        print(sum_cm_report)
-
-        report = f'{i}-fold\n'
-        report += print_fold_report(dictrecord)
-        cm_report = print_fold_cmreport(cmrecord)
-        txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
-        f = open(txtoutput_path , 'a')
-        f.write(cm_report)
-        f.write(report)
-        f.write('\n')
-        f.close()
-
-        if i == (10-1):
-            for k,v in sum_dictrecord.items():
-                if isinstance(v,dict):
-                    for kk,vv in v.items():
-                        if isinstance(vv,float):
-                            sum_dictrecord[k][kk]=sum_dictrecord[k][kk]/10
-                        else:
-                            sum_dictrecord[k][kk]=int(sum_dictrecord[k][kk]/10)
-                else:
-                    sum_dictrecord[k]=sum_dictrecord[k]/10 
-
-            for cmi,cmlist in enumerate(sum_cm_report):
-                for cmii, cmitem in enumerate(cmlist):
-                    sum_cm_report[cmi][cmii] = float(sum_cm_report[cmi][cmii]/10)
-
-            
-            cm_report = '========10-fold avg========\n'
-            cm_report += print_fold_cmreport(sum_cm_report)
-            report='========10-fold avg========\n'
-            report += print_fold_report(sum_dictrecord)
-            txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
-            f = open(txtoutput_path , 'a')
-            f.write(cm_report)
-            f.write(report)
-            f.write('\n')
-            f.close()
 
 if __name__ == '__main__':
-    main()
 
+    class_id = 'app'
+    choice_random_perfile = 1500
+    total_sample_perclass = 3300
+    choice_dataset = 'ipandport'
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(1):
+        main()
+    choice_dataset = 'b255v6'
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(1):
+        main()
+    choice_dataset = 'headerfield'
+    trainpath, testpath, headerdict = dataset_path(choice_dataset)
+    for i in range(1):
+        main()
+
+    class_id = 'traffic'
+    choice_random_perfile = 1000
+    total_sample_perclass = 4200
     choice_dataset = 'ipandport'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
     for i in range(1):
