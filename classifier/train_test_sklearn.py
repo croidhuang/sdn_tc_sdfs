@@ -245,7 +245,7 @@ class sklearn_class:
         else:
             print('dataset_id gg')
         #可印整個大檔會簡略顯示
-        print(glob_merged_data)
+        #print(glob_merged_data)
 
     def input_train_csv(self):
         #merge多個csv
@@ -558,6 +558,7 @@ def print_fold_cmreport(inputcmreport):
     return cmreport
 
 def save_models(clf, classifier):
+    """
     patht, titlet = file_timestamp()
     dir_name = "models"
     if not os.path.exists(dir_name):
@@ -574,6 +575,8 @@ def save_models(clf, classifier):
                                   patht +
                                   '.pkl')
     joblib.dump(clf, skloutput_path)
+    """
+    return None
 
 def print_tree(clf, classifier):
 
@@ -710,16 +713,19 @@ def ten_time_avg(ttt, X_train, y_train, X_test, y_test):
                 for cmii, cmitem in enumerate(cmlist):
                     sum_cm_report[cmi][cmii] += cmitem
 
+        
         report = f'{i}-time\n'
         report += print_text_report(dictrecord)
         cm_report = print_fold_cmreport(cmrecord)
+        """
         txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
         f = open(txtoutput_path , 'a')
         f.write(cm_report)
         f.write(report)
         f.write('\n')
         f.close()
-        
+        """
+
         #10 cal avg
         if i == (10-1):
             for k,v in sum_dictrecord.items():
@@ -750,11 +756,9 @@ def ten_time_avg(ttt, X_train, y_train, X_test, y_test):
 
 
 def ten_foldcross(ttt, X_train, y_train, X_test, y_test):
-    print(X_train)
-    print(X_test)
-    X_merge = np.concatenate((X_train , X_test))
-    y_merge = np.concatenate((y_train , y_test))
-    print(X_merge)
+    
+    X_merge = np.concatenate((X_train , X_test), axis=0)
+    y_merge = np.concatenate((y_train , y_test), axis=0)
 
     merge_skf = StratifiedKFold(n_splits=10)
     merge_skf.get_n_splits(X_merge, y_merge)
@@ -763,21 +767,21 @@ def ten_foldcross(ttt, X_train, y_train, X_test, y_test):
     sum_cm_report=[]
 
     for i in range(10):
-        
-        train_foldcross_list = [k for k in range(10) if k!=i]
-        test_foldcross_list = [i]
 
-        for ki,k in enumerate(train_foldcross_list):
-            if ki == 0:
-                train_index = list(merge_skf.split(X_merge, y_merge))[k][1]
+        for ki,(train_i,test_i) in enumerate(merge_skf.split(X_merge, y_merge)):
+            if ki != i:
+                try:
+                    train_index = np.concatenate((train_index , train_i), axis=0)
+                except:
+                    train_index = train_i
             else:
-                train_index += list(merge_skf.split(X_merge, y_merge))[k][1]
-        for ki,k in enumerate(test_foldcross_list):
-            if ki == 0:
-                test_index = list(merge_skf.split(X_merge, y_merge))[k][1]
-            else:
-                test_index += list(merge_skf.split(X_merge, y_merge))[k][1]
-        
+                try:
+                    test_index = np.concatenate((test_index , test_i), axis=0)
+                except:
+                    test_index = test_i               
+
+        train_index = list(train_index)
+        test_index = list(test_index)
         X_train_foldcross, y_train_foldcross, X_test_foldcross, y_test_foldcross = X_merge[train_index], y_merge[train_index], X_merge[test_index], y_merge[test_index]
 
         y_test_predicted, classifier = choice_classfier_func(X_train_foldcross, y_train_foldcross, X_test_foldcross)
@@ -805,17 +809,19 @@ def ten_foldcross(ttt, X_train, y_train, X_test, y_test):
             for cmi,cmlist in enumerate(cmrecord):
                 for cmii, cmitem in enumerate(cmlist):
                     sum_cm_report[cmi][cmii] += cmitem
-
+        
         report = f'{i}-foldcross\n'
         report += print_text_report(dictrecord)
         cm_report = print_fold_cmreport(cmrecord)
+        """
         txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
         f = open(txtoutput_path , 'a')
         f.write(cm_report)
         f.write(report)
         f.write('\n')
         f.close()
-        
+        """
+
         #10 cal avg
         if i == (10-1):
             for k,v in sum_dictrecord.items():
@@ -843,6 +849,20 @@ def ten_foldcross(ttt, X_train, y_train, X_test, y_test):
             f.write(report)
             f.write('\n')
             f.close()
+
+def one8020(ttt, X_train, y_train, X_test, y_test):
+    y_test_predicted, classifier = choice_classfier_func(X_train, y_train, X_test)    
+    if choice_classfier:
+        cmrecord,dictrecord = print_result(y_test, y_test_predicted, ttt.class_dict, classifier)
+    report = f'8020 \n'
+    report += print_text_report(dictrecord)
+    cm_report = print_fold_cmreport(cmrecord)
+    txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
+    f = open(txtoutput_path , 'a')
+    f.write(cm_report)
+    f.write(report)
+    f.write('\n')
+    f.close()
 
 def main():
     if trainpath[(len('.csv')*-1):] == '.csv':
@@ -893,24 +913,14 @@ def main():
     else:
         print('choice_train gg')
 
+    #one8020
+    one8020(ttt, X_train, y_train, X_test, y_test)
     
-    y_test_predicted, classifier = choice_classfier_func(X_train, y_train, X_test)    
-    if choice_classfier:
-        cmrecord,dictrecord = print_result(y_test, y_test_predicted, ttt.class_dict, classifier)
-    report = f'8020 \n'
-    report += print_text_report(dictrecord)
-    cm_report = print_fold_cmreport(cmrecord)
-    txtoutput_path = os.path.join(outputpath+'/'+"results"+'/'+ choice_dataset +'.txt')
-    f = open(txtoutput_path , 'a')
-    f.write(cm_report)
-    f.write(report)
-    f.write('\n')
-    f.close()
 
-    ten_time_avg(ttt, X_train, y_train, X_test, y_test)
+    #ten_time_avg(ttt, X_train, y_train, X_test, y_test)
     
     #還沒改好index會出錯
-    #ten_foldcross(ttt, X_train, y_train, X_test, y_test)
+    ten_foldcross(ttt, X_train, y_train, X_test, y_test)
 
 
 if __name__ == '__main__':
@@ -918,6 +928,7 @@ if __name__ == '__main__':
     class_id = 'app'
     choice_random_perfile = 1500
     total_sample_perclass = 3300
+
     choice_dataset = 'ipandport'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
     for i in range(1):
@@ -933,7 +944,7 @@ if __name__ == '__main__':
 
     class_id = 'traffic'
     choice_random_perfile = 1000
-    total_sample_perclass = 4200
+    total_sample_perclass = 3300
     choice_dataset = 'ipandport'
     trainpath, testpath, headerdict = dataset_path(choice_dataset)
     for i in range(1):
