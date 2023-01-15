@@ -112,7 +112,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         #False (self.Classifier_ctrl,self.Latency_ctrl)
         self.Classifier_ctrl   = False  # False = allright by ip, True = classification by model
         self.Routing_ctrl      = ROUTING_TYPE #bellman-ford, algo
-        self.Scheuduler_ctrl   = SCHEDULER_TYPE  # False, "random", "MAX", "min", "algo",
+        self.Scheuduler_ctrl   = SCHEDULER_TYPE  # False, "random", "MAX", "min", "algo", "max_flow"
         self.FlowMatch_ctrl    = True
         self.Monitor_ctrl      = True
         self.Latency_ctrl      = False
@@ -146,19 +146,19 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 
         # reverse key,value search port of switch to know go to what switch
-        self.mininetPortDict = {}
+        self.OutportSwitchDict = {}
         for k,d in mininetSwitchPortDict.items():
             try:
-                self.mininetPortDict[int(k)] = {}
+                self.OutportSwitchDict[int(k)] = {}
             except:
                 pass
 
             for s,p in d.items():
                 try:
-                    self.mininetPortDict[int(k)][int(p)] = int(s)
+                    self.OutportSwitchDict[int(k)][int(p)] = int(s)
                 except:
                     if s in str(s):
-                        self.mininetPortDict[int(k)][int(p)] = int(k)
+                        self.OutportSwitchDict[int(k)][int(p)] = int(k)
 
         # host to switch
         #change value type to int if no char 'h'or's'
@@ -369,6 +369,9 @@ class SimpleSwitch13(app_manager.RyuApp):
                 v2=M_to_G(self.HostDstsDict[G_to_M(k[1])])
                 if v1!= v2:
                     self.history_traffic[ik][(v1,v2)] += v
+
+        #slice bandwidth (estimate) for max_flow only
+        self.slice_bandfree_G = copy.deepcopy(EDGE_BANDWIDTH_G)
 
         #slice bandwidth (estimate)
         self.slice_bandfree = {i:{u:{v:1 for v in self.SwitchOutportDict.keys()} for u in self.SwitchOutportDict.keys()} for i in self.SliceDict.keys()}
@@ -624,8 +627,30 @@ class SimpleSwitch13(app_manager.RyuApp):
                             print("\n")
             hub.sleep(self.sleep_period)
 
+
+    def _getMaxFlowpath(self, weight_G, tupS_v1, tupS_v2):
+        try:
+            #flow_value, flow_dict = nx.maximum_flow(weight_G, _s = tupS_v1, _t = tupS_v2, capacity='weight')
+            flow_dict = nx.max_flow_min_cost(weight_G, s = tupS_v1, t = tupS_v2, capacity='weight')        
+            if flow_dict == None:
+                return None        
+            spath_list=[[]]
+            k=tupS_v1
+            spath_list[0].append(k)
+            i=0
+            maxi=len(flow_dict)
+            while k!=tupS_v2 and i<maxi:
+                k = max(flow_dict[k], key=flow_dict[k].get, default=None)
+                spath_list[0].append(k)
+                i += 1
+            if spath_list == None:
+                return None    
+            return spath_list
+        except:
+            return None
+
     #different switch to lowload slice
-    def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):
+    def _out_port_group(self, out_port, class_result, switchid, dst_host, layerid):        
 
         #host to id
         if layerid == "ipv4":
@@ -635,12 +660,13 @@ class SimpleSwitch13(app_manager.RyuApp):
         else:
             print("GG: unset id")
             return out_port
+        
 
         slice_num = class_result
         if class_result == "unknown":
             return out_port
         elif switchid == dsts:
-            return out_port
+            return out_port            
 
         if switchid in self.SwitchOutportDict.keys():
             #get value
@@ -665,36 +691,58 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 
             if self.Scheuduler_ctrl == False:
-                slice_num = class_result
+                slice_num = class_result 
+
+            elif self.Scheuduler_ctrl == "max_flow":                
+                spath = self._getMaxFlowpath(self.slice_bandfree_G, switchid, dsts)                
+                if spath == None:
+                    return out_port
+                elif len(spath) >1 :
+                    slice_num = 0
+                    next_s = spath[1]                    
+                    out_port = self.SwitchOutportDict[switchid][next_s]
+                else:
+                    return out_port
+
+
             elif bandfree[class_result] > self.slice_bandpkt[class_result]:
-                slice_num = class_result
+                slice_num = class_result                        
             elif self.Scheuduler_ctrl == "random":
                 slice_num = ryu_scheduler.random_algo(class_result, latency, bandfree, flow)
+                out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
             elif self.Scheuduler_ctrl == "MAX":
                 slice_num = ryu_scheduler.MAX_algo(class_result, latency, bandfree, flow)
+                out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
             elif self.Scheuduler_ctrl == "min":
                 slice_num = ryu_scheduler.min_algo(class_result, latency, bandfree, flow)
+                out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
             elif self.Scheuduler_ctrl == "algo":
-                slice_num = ryu_scheduler.scheduler_algo(class_result, latency, bandfree, flow)
+                slice_num = ryu_scheduler.scheduler_algo(class_result, latency, bandfree, flow)    
+                out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]                                        
+            
             else:
                 print(f'GG: please check self.Scheuduler_ctrl')
                 slice_num = class_result
-
-        out_port = self.outport_lish[layerid][slice_num][switchid][dst_host]
+        
 
         if self.DynamicBW_ctrl == "est_avg":
             if p_gen[slice_num] == []:
                 pass
             else:
-                for s1,s2 in zip(p_gen[slice_num][0::1], p_gen[slice_num][1::1]):
-                    # consume each switch slice
-                    #test
-                    self.slice_bandfree[slice_num][s1][s2] -= self.slice_bandpkt[class_result]
-                    self.slice_bandfree[slice_num][s2][s1] = self.slice_bandfree[slice_num][s1][s2]
+                # consume each switch slice
+                #test
+                next_s = self.OutportSwitchDict[switchid][out_port]
 
-                    # aging flow in slice
-                    self.slice_BWaging_dict[slice_num][s1][s2][-1] += self.slice_bandpkt[class_result]
-                    self.slice_BWaging_dict[slice_num][s2][s1][-1] = self.slice_BWaging_dict[slice_num][s1][s2][-1]
+                if self.Scheuduler_ctrl == "max_flow":
+                    self.slice_bandfree_G[switchid][next_s]['weight'] -= self.slice_bandpkt[class_result]
+                    self.slice_bandfree_G[next_s][switchid]['weight'] = self.slice_bandfree_G[switchid][next_s]['weight']
+                
+                self.slice_bandfree[slice_num][switchid][next_s] -= self.slice_bandpkt[class_result]
+                self.slice_bandfree[slice_num][next_s][switchid] = self.slice_bandfree[slice_num][switchid][next_s]
+
+                # aging flow in slice
+                self.slice_BWaging_dict[slice_num][switchid][next_s][-1] += self.slice_bandpkt[class_result]
+                self.slice_BWaging_dict[slice_num][next_s][switchid][-1] = self.slice_BWaging_dict[slice_num][switchid][next_s][-1]
         elif self.DynamicBW_ctrl == "rt_port":
             pass
         else:
@@ -716,6 +764,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                 writer.writerow(row)
 
         return out_port
+    
 
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
     def _packet_in_handler(self, ev):
@@ -971,6 +1020,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                             )
                 self._send_package(msg, datapath, in_port, actions)
         elif switchid in self.outport_lish["ipv4"][class_result] and ipv4_dst in self.outport_lish["ipv4"][class_result][switchid]:
+            
             hard_timeout = self.hard_timeout[class_result]
             #out_port
             out_port = self.outport_lish["ipv4"][class_result][switchid][ipv4_dst]
@@ -1166,7 +1216,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         if dpid:
             for stat in sorted(body, key = attrgetter("port_no")):
                 #first pot = port 1
-                if stat.port_no < (len(self.mininetPortDict[dpid])+1):
+                if stat.port_no < (len(self.OutportSwitchDict[dpid])+1):
                     portno = stat.port_no
 
                     rx_bytes = stat.rx_bytes - self.moniter_record["prev_rx_bytes"][dpid][portno]
@@ -1178,7 +1228,7 @@ class SimpleSwitch13(app_manager.RyuApp):
                     self.moniter_record["tx_curr"][dpid][portno] = tx_bytes
 
                     if self.DynamicBW_ctrl == "rt_port":
-                        dsts = self.mininetPortDict[dpid][stat.port_no]
+                        dsts = self.OutportSwitchDict[dpid][stat.port_no]
                         bandload = self.moniter_record["rx_curr"][dpid][portno] + self.moniter_record["tx_curr"][dpid][portno]
                         self.edge_realtime_bandfree[dpid][dsts] = self.edge_bandwidth[dpid][dsts] - bandload
 
@@ -1215,8 +1265,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
                 for stat in sorted(body, key = attrgetter("port_no")):
                     if dpid in self.SwitchOutportDict.keys():
-                        if stat.port_no < (len(self.mininetPortDict[dpid])+1):
-                            dstdpid = self.mininetPortDict[dpid][stat.port_no]
+                        if stat.port_no < (len(self.OutportSwitchDict[dpid])+1):
+                            dstdpid = self.OutportSwitchDict[dpid][stat.port_no]
                             portno = stat.port_no
                             latency = self.latency[dpid][dstdpid]
                             bandwidth = self.edge_bandwidth[dpid][dstdpid]
