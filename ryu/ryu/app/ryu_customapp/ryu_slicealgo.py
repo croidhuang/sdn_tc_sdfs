@@ -6,7 +6,7 @@ import matplotlib.colors
 
 import random
 import os
-
+import time
 import pprint
 
 from exp_config.exp_config import topo_SLICENDICT
@@ -163,9 +163,30 @@ def _getSpath(weight_G, tupS_v1, tupS_v2):
         spath_gen = nx.all_shortest_paths(weight_G, source = tupS_v1, target = tupS_v2, weight='weight')
         spath_gen = list(spath_gen)
         if spath_gen == None:
-            print("no shortest path, may not connect")
+            return None
         spath_gen = [p for p in sorted(spath_gen, key = lambda item:len(item), reverse = True)]
         return spath_gen
+    except:
+        return None
+
+def _getMaxFlowpath(weight_G, tupS_v1, tupS_v2):
+    try:
+        #flow_value, flow_dict = nx.maximum_flow(weight_G, _s = tupS_v1, _t = tupS_v2, capacity='weight')
+        flow_dict = nx.max_flow_min_cost(weight_G, s = tupS_v1, t = tupS_v2, capacity='weight')        
+        if flow_dict == None:
+            return None        
+        spath_list=[[]]
+        k=tupS_v1
+        spath_list[0].append(k)
+        i=0
+        maxi=len(flow_dict)
+        while k!=tupS_v2 and i<maxi:
+            k = max(flow_dict[k], key=flow_dict[k].get, default=None)
+            spath_list[0].append(k)
+            i += 1
+        if spath_list == None:
+            return None    
+        return spath_list
     except:
         return None
 
@@ -342,6 +363,45 @@ def slice_algo(topo_G, SliceNum, EDGE_BANDWIDTH_G, HISTORYTRAFFIC, SliceDraw_ctr
                     print("no shortest path, may not connect")
                     continue
                 sorted_spath_G_list = _removeCycleSpath(topo_sliceG[i], spath_gen)
+
+                """
+                algo
+                """
+
+                #add path
+                spath_G = sorted_spath_G_list[0]
+
+                estcycle_G = topo_sliceG[i].copy()
+                estcycle_G = _addPath(estcycle_G, spath_G)
+                estB_G = v_G.copy()
+                estB_G = _addPath(estB_G, spath_G)
+                if EstDraw_ctrl == True:
+                    estadd_G = v_G.copy()
+                    estadd_G = _addPath(estadd_G, spath_G)
+                    icount=_draw_estcycle_G(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], estadd_G, i, icount, dir_name)
+
+                for v1, v2 in spath_G.edges():
+                    topo_sliceG[i], loading_G, BW_usage[i], used_Edge[i], allo_G = _unionEdge(v1, v2, topo_sliceG[i], loading_G, EDGE_BANDWIDTH_G, BW_usage[i], used_Edge[i], trafficE, allo_G)
+                if SliceDraw_ctrl == True:
+                    icount=_draw_subG(allo_G, loading_G, EDGE_BANDWIDTH_G, tupS, trafficE, node_dist_to_color, node_color, font_color, topo_pos, topo_sliceG[i], i, icount, dir_name)
+
+        #shortest path
+        if ROUTING_TYPE == "max_flow":
+            for tupS, trafficE in HISTORYTRAFFIC[i].items():
+                if trafficE == 0:
+                    continue
+
+                tupS_v1 = tupS[0]
+                tupS_v2 = tupS[1]
+                print(f"({ tupS_v1}, { tupS_v2}):{trafficE}")
+
+                remain_bandwidth_G = set_remain_bandwidth_G(loading_G, EDGE_BANDWIDTH_G)                
+                spath_list = _getMaxFlowpath(remain_bandwidth_G, tupS_v1, tupS_v2)
+                print(spath_list)
+                if spath_list == None:
+                    print("no maxflow path, may not ennough or not connect")
+                    continue
+                sorted_spath_G_list = _removeCycleSpath(topo_sliceG[i], spath_list)
 
                 """
                 algo
